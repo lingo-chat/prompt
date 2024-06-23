@@ -149,8 +149,6 @@ Prompt Engineering Techniques
 
 ## 1. Chain of Thought(CoT) Prompting
 
-![cot.webp](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/3dcff97e-39dd-469d-bace-ecd8ad14257b/cot.webp)
-
 - 기존의 예시를 제시하는 방식(`Few-Shot Prompting`) 에서 발전된 질문 기법을 갖춤.
     - 중간 추론 단계를 제공하여 복잡한 추론을 할 수 있도록 하는 방법임.
     - 단답형 프롬프트와 결합하면 복잡한 추론을 요하는 작업에서 향상된 결과를 확보할 수 있다.
@@ -181,7 +179,6 @@ Prompt Engineering Techniques
 
 ### 1-0 Zero-Shot CoT Prompting
 
-![zero-cot.webp](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/fe20ac4f-a7a0-4bb6-9d47-23eab8e9f459/zero-cot.webp)
 
 - `Zero-Shot Prompting`에 `“단계별로 생각하기(Let's think step by step)”` 을 추가하는 방법.
     - 다르게 표현하자면, AI에게 생각할 시간을 주는 기법 중 하나.
@@ -270,7 +267,6 @@ Prompt Engineering Techniques
 - 최종적으로 산술 및 상식적 추론과 관련된 작업에서 CoT Prompt의 성능을 향상시킬 수 있다.
 - [**Self-Consistency Improves Chain of Thought Reasoning in Language Models(2022)](https://arxiv.org/pdf/2203.11171.pdf) 참조**
 
-![Untitled](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/b9f4d59f-a865-4819-9fb3-4ba8c4803ee3/Untitled.png)
 
 - 그림을 보면, 위쪽에서는 CoT 하나만을 이용하여 방식으로, 오답이 나왔음을 볼 수 있다.
 - 밑에 그림(Self-consistency)
@@ -280,7 +276,6 @@ Prompt Engineering Techniques
 
 - 결론적으로, 한 개의 정답을 출력하는 기존 방식이 아닌, 여러 개의 결과를 종합한 결론을 내리기에, 추론의 정확성 및 일관성을 개선할 수 있게됨.
 
-![Untitled](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/06da50ad-474c-4d39-a32a-07f039715885/Untitled.png)
 
 - **GSM8K 예시**는 주어진 문제에 대한 그리디 디코딩과 샘플링된 경로의 답변을 비교.
     - 그리디 디코딩은 오답인 40을 도출했지만, 샘플링된 경로는 정답인 25를 도출합니다.
@@ -298,9 +293,8 @@ Prompt Engineering Techniques
 
 - LLM이 최종 정답을 생성하기 전에 LLM에 주어진 질문 및 프롬프트에 유용할만한 정보들을 생성하는 것.
 
-![gen-knowledge.webp](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/cc3fb1e6-0022-4ca5-b436-8819620f24d4/gen-knowledge.webp)
-
 - 진행 방법(예시)
+
 1. 몇 가지 지식을 생성함(`Knowledge Generation`)
     
     ```markdown
@@ -373,11 +367,48 @@ Prompt Engineering Techniques
 
 - ToT의 구조
 
-![TOT.webp](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/2f4df360-d596-42d0-97c4-005329a6af90/TOT.webp)
 
 ### ToT의 진행과정
 
-[ToT의 진행과정(GPT4 답변)](https://www.notion.so/ToT-GPT4-6b0b0f58889e4b87b314027654ea69b8?pvs=21)
+[Tree of Thoughts: Deliberate Problem Solving with Large Language Models](https://arxiv.org/pdf/2305.10601.pdf)
+
+- 기술된 내용을 GPT에 넣어 나온 내용을 정리
+
+---
+
+### ToT의 기본 아이디어
+
+- **트리 구조**: ToT는 문제 해결을 위한 추론 경로를 트리 구조로 표현합니다. 각 노드는 부분 해결책을 나타내며, 각 가지(branch)는 문제 해결을 위한 연산(operators)을 나타냅니다.
+- **탐색 및 추론**: ToT는 다양한 탐색 알고리즘(예: 너비 우선 탐색, 깊이 우선 탐색)을 사용하여 트리 구조에서의 추론 경로를 체계적으로 탐색합니다.
+
+### ToT 프롬프팅의 주요 구성 요소
+
+1. **생각의 분해(Thought Decomposition)**:
+    - ToT는 문제를 중간 단계의 생각(thoughts)으로 분해하여, 문제 해결을 위한 명확한 경로를 제공합니다.
+    - 분해된 생각의 크기는 다양하며, 문제 유형에 따라 다를 수 있습니다. 예를 들어, 크로스워드 퍼즐에서는 단어, Game of 24에서는 수학적 표현, 창작 글쓰기에서는 문단 단위로 생각을 분해할 수 있습니다.
+2. **생각 생성기(Thought Generator)**:
+    - 주어진 트리 상태에서 다음 단계의 생각을 생성하는 데 사용됩니다.
+    - 두 가지 전략이 있습니다:
+        - **i.i.d. 샘플링**: 독립적으로 샘플링하여 다양한 생각을 생성합니다. 이는 더 많은 다양성을 제공하며, 창작 글쓰기와 같은 풍부한 생각 공간에 적합합니다.
+        - **순차적 제안**: 순차적으로 샘플링하여 중복을 피하고 더 제한된 생각 공간에서 다양한 생각을 생성할 수 있습니다. 이는 크로스워드 퍼즐처럼 각 생각이 단어 또는 짧은 구문인 경우에 유용합니다.
+3. **상태 평가(State Evaluation)**:
+    - 트리 구조에서 다양한 상태를 평가하여 문제 해결에 얼마나 가까운지 측정합니다.
+    - 두 가지 접근 방식이 있습니다:
+        - **독립적으로 상태 평가**: 각 상태를 독립적으로 평가하여 값(예: 1~10 스케일) 또는 분류(예: 가능/불가능)를 생성합니다.
+        - **상태 투표**: 여러 상태를 비교하여 가장 유망한 상태에 투표합니다. 이는 여러 부분 해결책을 비교하고 가장 유망한 것을 선택하는 데 유용합니다.
+4. **탐색 알고리즘(Search Algorithm)**:
+    - ToT에서는 다양한 탐색 알고리즘을 사용할 수 있습니다. 두 가지 간단한 탐색 알고리즘이 제안됩니다:
+        - **너비 우선 탐색(BFS)**: 매 단계에서 가장 유망한 상태를 몇 개 선택하고 탐색을 진행합니다. 이는 트리 깊이가 제한된 경우에 적합합니다.
+        - **깊이 우선 탐색(DFS)**: 가장 유망한 경로를 따라 계속 탐색하고, 필요에 따라 백트래킹하여 다른 경로를 탐색합니다. 이는 더 깊은 트리 구조에서 유용합니다.
+
+### ToT의 장점
+
+- **일반성**: ToT는 CoT, CoT-SC, 셀프 리파인먼트(Self-Refinement) 등의 기법을 포함할 수 있으며, 트리 구조의 깊이와 너비를 조정하여 다양한 문제 유형에 적용할 수 있습니다.
+- **모듈성**: ToT는 기본 LM, 생각 분해, 생성, 평가, 탐색 과정 등을 독립적으로 조정할 수 있습니다.
+- **적응성**: 다양한 문제 특성, LM 능력, 리소스 제한 등에 따라 ToT를 조정할 수 있습니다.
+- **편의성**: 추가 훈련 없이 사전 학습된 LM을 사용하여 문제 해결을 수행할 수 있습니다.
+
+이러한 ToT의 개념적 이점은 여러 가지 문제 유형에서 높은 성능을 보이는 데 기여합니다.
 
 ### ToT 프롬프팅
 
@@ -545,7 +576,6 @@ Expert 1: 저도 이제 실수를 알겠어요. 공은 실제로 `침실`에 있
 
 ### **Automatic Reasoning and Tool-use(**ART)의 진행 과정
 
-![ART.webp](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/03a3b74b-a523-42b7-b113-6a7a379725be/ART.webp)
 
 1. Task Library
     1. LLM이 주어진 작업을 해결하기 위한 가장 적합한 예시를 선택.
@@ -563,7 +593,6 @@ Expert 1: 저도 이제 실수를 알겠어요. 공은 실제로 `침실`에 있
 - 자동 프롬프팅 엔지니어링 기법으로 **언어 모델에 대한 명령 생성 및 선택을 자동화하여 프로세스를 자연어 합성 및 최적화 문제**로 다룸.
 - `Zero-shot CoT`에서 사용된 `Step by Step` 프롬프트보다 더 나은 성능을 보여줌.
 
-![APE.webp](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/1cad21ce-b8b0-4d33-b36a-11310e3b42d3/APE.webp)
 
 ### APE의 절차
 
@@ -587,7 +616,6 @@ Expert 1: 저도 이제 실수를 알겠어요. 공은 실제로 `침실`에 있
 - 기존 CoT 방법은 고정된 인간이 작성한 주석에 의존함.
     - Active Prompt는 작업에 대한 다양한 예시를 사용하여 성능을 향상시킴
 
-![active-prompt.webp](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/62744b1d-cd85-4f0d-b319-5a8420dae888/active-prompt.webp)
 
 1. **불확실성 추정**
     1. 주어진 작업을 수행하기 위해 LLM을 쿼리화. 
@@ -617,7 +645,6 @@ Expert 1: 저도 이제 실수를 알겠어요. 공은 실제로 `침실`에 있
 
 ## **Directional Stimulus Prompting**
 
-![dsp.webp](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/e8d15a5f-df21-4464-b772-052e628ba34e/dsp.webp)
 
 - LLM이 원하는 결과를 생성하도록 더 잘 유도하기 위해 제안된 새 프롬프팅 기법.
 - 모델에 대한 지시나 힌트를 제공하는 정책 언어 모델(policy LM)을 활용.
@@ -736,7 +763,6 @@ print(born)**
     - Aside from the Apple Remote, what other devices can control the program Apple Remote was originally designed to interact with?(질문)
     - in context example 또한 프롬프트에 추가됨.
     
-    ![react.webp](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/0f516021-d770-48c4-90e0-880f067d8fe1/react.webp)
     
     - 실제 실행 결과(GPT 3.5 Turbo)
     
@@ -800,7 +826,6 @@ print(born)**
 2. 이 트레이닝 세트들을 퓨샷(few-shot) 견본으로 사용.
 
 ### 다른 방법과 비교
-
 - CoT와 비교했을 때, ReAct는 서로 다른 평가 방법에서 차이가 발생함.
 - 발생 원인은 다음과 같다.
     - CoT suffers from fact hallucination
@@ -815,16 +840,12 @@ print(born)**
 ---
 
 ## Reflexion
-
 - 언어 피드백을 통해 언어 기반 에이전트를 강화
 - According to [Shinn et al. (2023)](https://arxiv.org/pdf/2303.11366.pdf), "Reflexion is a new paradigm for ‘verbal‘ reinforcement that parameterizes a policy as an agent’s memory encoding paired with a choice of LLM parameters."
 - Reflexion은 환경에서 오는 언어적 피드백(free-form language 또는 scalar)을 LLM Agent에 추가하여 다음 단계에 포함시킴.
     - 이는 이 에이전트가 빠르고 효과적으로 이전 실수를 배우고, 성능을 향상시키는데 기여함.
 
 ### Reflexion의 구조
-
-![reflexion.webp](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/f939f0f7-591f-4825-a6fd-38705cbdeaa1/reflexion.webp)
-
 - Reflexion은 3개의 다른 모델을 사용함.
     1. Actor
         - Observation을 기반으로 텍스트와 행동을 생성.
@@ -846,18 +867,61 @@ print(born)**
             → 에이전트가 의사 결정 능력을 신속하게 향상시키는데 도움됨.
             
 
-- Reflextion을 사용할 수 있는 경우
+> ### Reflextion을 사용할 수 있는 경우(gpt-4 답변 참조)
+    Reflexion 프레임워크는 언어 기반 에이전트가 과거 실수를 돌아보고 미래의 결정을 개선하기 위해 그 지식을 활용할 수 있도록 돕는 구조입니다. Reflexion을 사용하기에 적합한 경우는 다음과 같습니다:
 
-[**When to Use Reflexion?**](https://www.notion.so/When-to-Use-Reflexion-22e997883f4b4c7e9d9bb8425f6b0a36?pvs=21)
+    - **시도와 오류로부터 학습해야 하는 경우**:
+    Reflexion은 에이전트가 과거 실수를 반성하고 그 지식을 향후 의사결정에 적용하여 성능을 개선하도록 설계되었습니다. 이는 의사결정, 추론, 프로그래밍과 같이 에이전트가 시도와 오류를 통해 학습해야 하는 작업에 적합합니다.
+    - **전통적인 강화 학습 방법이 비실용적인 경우**:
+    전통적인 강화 학습(RL) 방법은 종종 광범위한 훈련 데이터와 값비싼 모델 미세 조정을 요구합니다. Reflexion은 언더라이닝 언어 모델을 미세 조정할 필요가 없는 경량 대안을 제공하며, 데이터와 계산 자원을 더 효율적으로 활용할 수 있습니다.
+    - **미세한 피드백이 필요한 경우**:
+    Reflexion은 전통적인 RL에서 사용되는 스칼라 보상보다 더 미세하고 구체적인 언어적 피드백을 활용합니다. 이를 통해 에이전트는 자신의 실수를 더 잘 이해하고 다음 실험에서 더 목표 지향적인 개선을 이룰 수 있습니다.
+    - **해석 가능성과 명시적 메모리가 중요한 경우**:
+    Reflexion은 전통적인 RL 방법에 비해 더 해석 가능하고 명시적인 에피소드 메모리를 제공합니다. 에이전트의 자기 반성은 메모리에 저장되어, 학습 과정의 분석과 이해를 쉽게 해줍니다.
 
-### Reflexion의 한계
+    Reflexion이 효과적인 작업에는 다음이 포함됩니다:
 
-- **자기 평가 능력 의존**:
-Reflexion은 에이전트가 자신의 성능을 정확하게 평가하고 유용한 자기 반성을 생성할 수 있는 능력에 의존합니다. 이는 특히 복잡한 작업에서 도전적일 수 있지만, 모델의 능력이 향상됨에 따라 Reflexion의 성능도 개선될 것으로 예상됩니다.
-- **장기 메모리 제한**:
-Reflexion은 최대 용량이 있는 슬라이딩 윈도우를 사용하지만, 더 복잡한 작업의 경우 벡터 임베딩 또는 SQL 데이터베이스와 같은 고급 구조를 사용하는 것이 유리할 수 있습니다.
-- **코드 생성 제한**:
-정확한 입력-출력 매핑을 지정하는 테스트 기반 개발의 한계(예: 비결정적 생성 함수 및 하드웨어에 영향을 받는 함수 출력)가 있을 수 있습니다.
+    - **순차적 의사결정**:
+    Reflexion 에이전트는 다양한 환경을 탐색하고 다단계 목표를 완료하는 AlfWorld 작업에서 성능을 개선했습니다.
+    - **추론**:
+    Reflexion은 여러 문서를 기반으로 추론이 필요한 질문-응답 데이터셋인 HotPotQA에서 에이전트의 성능을 개선했습니다.
+    - **프로그래밍**:
+    Reflexion 에이전트는 HumanEval 및 MBPP와 같은 벤치마크에서 더 나은 코드를 작성했으며, 일부 경우에는 최첨단 결과를 달성했습니다.
+
+    그러나 Reflexion에는 몇 가지 제한 사항이 있습니다:
+
+    - **자기 평가 능력 의존**:
+    Reflexion은 에이전트가 자신의 성능을 정확하게 평가하고 유용한 자기 반성을 생성할 수 있는 능력에 의존합니다. 이는 특히 복잡한 작업에서 도전적일 수 있지만, 모델의 능력이 향상됨에 따라 Reflexion의 성능도 개선될 것으로 예상됩니다.
+    - **장기 메모리 제한**:
+    Reflexion은 최대 용량이 있는 슬라이딩 윈도우를 사용하지만, 더 복잡한 작업의 경우 벡터 임베딩 또는 SQL 데이터베이스와 같은 고급 구조를 사용하는 것이 유리할 수 있습니다.
+    - **코드 생성 제한**:
+    정확한 입력-출력 매핑을 지정하는 테스트 기반 개발의 한계(예: 비결정적 생성 함수 및 하드웨어에 영향을 받는 함수 출력)가 있을 수 있습니다.
+
+    ## **(GPT 4 답변)**
+
+    Reflexion은 언어 기반 에이전트가 언어적 피드백을 통해 자기 개선을 이루는 데 유용한 프레임워크입니다. 다양한 작업에 적용할 수 있으며, 다음과 같은 활용 방안을 고려해 볼 수 있습니다:
+
+    - **학습 과정 최적화**:
+    Reflexion을 통해 에이전트는 과거 실수를 돌아보고 이를 기반으로 학습합니다. 이를 통해 에이전트의 학습 속도를 높이고 더 나은 결과를 얻을 수 있습니다.
+    - **의사결정 능력 향상**:
+    Reflexion은 에이전트가 스스로 평가하고 반성하도록 돕기 때문에 의사결정 작업에 적합합니다. 이를 통해 에이전트가 복잡한 의사결정 작업에서 실수를 줄이고 더 효과적인 결정을 내릴 수 있습니다.
+    - **프로그래밍 교육**:
+    프로그래밍 작업에서 Reflexion을 활용하면 에이전트가 코드 작성 과정에서 발생하는 오류를 파악하고 개선할 수 있습니다. 이를 통해 에이전트는 더 나은 코드를 작성하고, 프로그래밍 기술을 발전시킬 수 있습니다.
+    - **지식 기반 시스템 강화**:
+    Reflexion을 사용하여 지식 기반 시스템을 강화할 수 있습니다. 에이전트가 스스로 반성하고 지식을 확장하여 더 정확한 정보를 제공할 수 있도록 합니다.
+    - **지속적인 개선을 위한 프레임워크 구축**:
+    Reflexion은 에이전트가 지속적으로 개선할 수 있는 구조를 제공합니다. 이를 통해 시스템이 시간이 지남에 따라 향상되고 더 정확한 결과를 제공할 수 있습니다.
+
+    이러한 활용 방안은 Reflexion을 사용하여 에이전트의 성능을 향상시키고, 더 나은 학습과 의사결정을 가능하게 합니다. 이를 통해 복잡한 작업에서도 에이전트의 효율성을 높일 수 있습니다.
+
+    ### Reflexion의 한계
+
+    - **자기 평가 능력 의존**:
+    Reflexion은 에이전트가 자신의 성능을 정확하게 평가하고 유용한 자기 반성을 생성할 수 있는 능력에 의존합니다. 이는 특히 복잡한 작업에서 도전적일 수 있지만, 모델의 능력이 향상됨에 따라 Reflexion의 성능도 개선될 것으로 예상됩니다.
+    - **장기 메모리 제한**:
+    Reflexion은 최대 용량이 있는 슬라이딩 윈도우를 사용하지만, 더 복잡한 작업의 경우 벡터 임베딩 또는 SQL 데이터베이스와 같은 고급 구조를 사용하는 것이 유리할 수 있습니다.
+    - **코드 생성 제한**:
+    정확한 입력-출력 매핑을 지정하는 테스트 기반 개발의 한계(예: 비결정적 생성 함수 및 하드웨어에 영향을 받는 함수 출력)가 있을 수 있습니다.
 
 ---
 
@@ -867,7 +931,6 @@ Reflexion은 최대 용량이 있는 슬라이딩 윈도우를 사용하지만, 
 
 멀티모달 CoT 모델(1B)은 ScienceQA 벤치마크에서 GPT-3.5보다 성능이 뛰어났습니다.
 
-![multimodal-cot.webp](https://prod-files-secure.s3.us-west-2.amazonaws.com/22c2acc0-4ba1-4493-8083-fad043a54ce8/98819395-84e5-4054-b778-1ebec4495cff/multimodal-cot.webp)
 
 - 관련 논문
 
