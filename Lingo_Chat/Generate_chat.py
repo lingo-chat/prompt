@@ -70,11 +70,14 @@ Review the chat log, including both questions and answers.
 Identify a new question related to the same topics discussed but not already asked.
 Ensure the new question is not a repetition or a slight variation of an already asked question.
 The question created must have a clear difference from previous questions.
-Output must matches the language of the chat log provided.
+Output must matches the language of the 'response' parts in chat_log's provided.
+
+Finally, just print the questions. 
+만든 질문은 한글로 출력하세요.
 
 Chat log:
 {chat_log}
-Suggested question:'''
+'''
 
 def create_prompt():
     return PromptTemplate(
