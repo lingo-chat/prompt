@@ -130,7 +130,7 @@ lingo/
 ENV/
 env.bak/
 venv.bak/
-
+lingo.bak/
 # Spyder project settings
 .spyderproject
 .spyproject
