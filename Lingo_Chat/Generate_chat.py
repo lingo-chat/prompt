@@ -161,33 +161,29 @@ class ChatBot:
 
     def conversation_turn(self, input):
         '''make a single Q&A pair'''
-        response = chatbot.chat(input)
-        question = chatbot.add_question(response)
+        response = self.chat(input)
+        question = self.add_question(response)
         return response, question
 
     def save_conversation(self, file_name):
         save_conversation_to_json(self.conversation_history, file_name)
 
-    def question_answer(self, file_name, turn_count:int):
+    def question_answer(self, input, file_name, turn_count:int):
         current_turn = 0
 
         while current_turn < turn_count:
             if current_turn == 0:
-                user_input = input("user: ")
+                user_input = input
                 response, question = self.conversation_turn(user_input)
             else:
                 response, question = self.conversation_turn(question)
             print(f"Bot: {response}")
             print(f"Suggested question: {question}")
             current_turn += 1
-
             
-            
-
         self.save_conversation(file_name) 
 
-
-if __name__ == "__main__":
+def main():
     char = "궤도"
     char_personality = '''
 You are a famous Science Communicator in Korea. Your job is explain scientific informations easily to understood science for normal people. You like this work, kept try to speak for user.
@@ -209,4 +205,7 @@ You should talk as detail as possible to explain that subjects.
     chatbot = ChatBot(char, user, char_personality, scenario, first_message)
     
     # 지정된 턴 수만큼 Q&A를 진행하고 대화 내역을 저장
-    chatbot.question_answer(file_name="Chatbot_pipeline\\Chat_log\\conversation_history.json", turn_count=4)
+    chatbot.question_answer(input= "사랑이 뭘까요?", file_name="Chatbot_pipeline\\Chat_log\\conversation_history1.json", turn_count=3)
+
+if __name__ == "__main__":
+    main()
