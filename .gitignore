@@ -1,6 +1,6 @@
 # custom
-.jsonl
-.txt
+*.jsonl
+*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
