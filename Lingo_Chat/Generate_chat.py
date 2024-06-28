@@ -175,12 +175,24 @@ class ChatBot:
             if current_turn == 0:
                 user_input = input
                 response, question = self.conversation_turn(user_input)
+                current_turn += 1
+                print(f"turn_count: {current_turn}")
+                print(f"Bot: {response}")
+                print(f"Suggested question: {question}")
             else:
-                response, question = self.conversation_turn(question)
-            print(f"Bot: {response}")
-            print(f"Suggested question: {question}")
-            current_turn += 1
-            
+                if current_turn < turn_count-1:
+                    response, question = self.conversation_turn(question)
+                    current_turn += 1
+                    print(f"turn_count: {current_turn}")
+                    print(f"Bot: {response}")
+                    print(f"Suggested question: {question}")
+
+                else:
+                    response = self.chat(question)
+                    print(f"turn_count: last turn")
+                    print(f"Bot: {response}")
+                    current_turn += 1
+
         self.save_conversation(file_name) 
 
 def main():
