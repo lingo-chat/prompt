@@ -128,11 +128,10 @@ class ResponseCorrectness:
         """
         self.model = model
         if "gemini" in self.model:
-            model_api_key = "AIzaSyB57MsoWYRFfvlYwdGxltyeLnHXkE1d3wM"  # 추후 api 전달받으면서 진행할 수 있도록 수정해야 함
+            model_api_key = ""  # 추후 api 전달받으면서 진행할 수 있도록 수정해야 함
             if idx is not None:
                 _model_api_key = [
-                    "AIzaSyB57MsoWYRFfvlYwdGxltyeLnHXkE1d3wM",
-                    "AIzaSyATcEkxmqQjF-M34Ul-PfRjYBP_0QDh65o",
+                    "",
                 ]
                 model_api_key = _model_api_key[idx % 2]
 
