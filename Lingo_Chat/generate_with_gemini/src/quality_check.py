@@ -16,20 +16,17 @@ This module is used to check the quality of the generated text.
 
 import re
 import os
+import sys
 import time
 import json
 import jsonlines
 import asyncio
 import concurrent.futures
 
-try:    # main.py 위치 기준
-    from src.api import gemini
-    from src.prompt import CORRECTNESS_ORBIT_SYS_TMPL, CORRECTNESS_USER_TMPL
-    from src.utils import jsonl_save
-except: # __file__ 위치 기준
-    from api import gemini
-    from prompt import CORRECTNESS_ORBIT_SYS_TMPL, CORRECTNESS_USER_TMPL
-    from utils import jsonl_save
+sys.path.append("../")
+from src.api import gemini
+from src.prompt import CORRECTNESS_MULTITURN_SCORING_PROMPT, CORRECTNESS_USER_TMPL
+from src.utils import jsonl_save, jsonl_read
 
 from tqdm import tqdm
 from typing import Dict, List, Any, Union
@@ -136,7 +133,7 @@ class ResponseCorrectness:
                 model_api_key = _model_api_key[idx % 2]
 
             # SYSTEM_PROMPT = response_correctness.CORRECTNESS_SYS_TMPL
-            SYSTEM_PROMPT = CORRECTNESS_ORBIT_SYS_TMPL
+            SYSTEM_PROMPT = CORRECTNESS_MULTITURN_SCORING_PROMPT
             USER_PROMPT = CORRECTNESS_USER_TMPL.format(
                 query=question, reference_answer=answer, generated_answer=response
             )
@@ -157,6 +154,7 @@ class ResponseCorrectness:
         self,
         gemini_api_key: str,
         model="geminipro1.0",
+        system_prompt=CORRECTNESS_MULTITURN_SCORING_PROMPT,
         messages: List[Dict]=[],
     ):
         """
@@ -176,7 +174,7 @@ class ResponseCorrectness:
         
         if "gemini" in self.model:
             # SYSTEM_PROMPT = response_correctness.CORRECTNESS_SYS_TMPL
-            SYSTEM_PROMPT = CORRECTNESS_ORBIT_SYS_TMPL
+            SYSTEM_PROMPT = system_prompt
             USER_PROMPT = _get_user_prompt_from_multiturn(messages=messages)
             result = run_gemini(
                 model=model,
@@ -254,10 +252,14 @@ def _get_user_prompt_from_multiturn(messages: List[Dict]) -> str:
         
 
     
-def multiturn_main(jsonl_data_path: str, 
+def multiturn_main(model_name: str,
+                   jsonl_data_path: Union[List[Dict], str], 
                    jsonl_save_path: str,
                    gemini_api_key_list: List[str],
-                   start_idx: int = 0):
+                   system_prompt: str,
+                   start_idx: int = 0,
+                   sleep_sec: float = 2.5,
+                   if_thread: bool = True):
     ## 1. model load
     ## 2. 각 평가기준 프롬프트 구성
     ## 3. loop 돌면서 호출 및 평가
@@ -265,33 +267,35 @@ def multiturn_main(jsonl_data_path: str,
     ## 5. 점수 시각화
     ## 6. 점수 기준으로 필터링
 
-    _data_list = []
-    with jsonlines.open(jsonl_data_path) as f:
-        for line in f.iter():
-            _data_list.append(line)
+    if type(jsonl_data_path) == str:
+        _data_list = jsonl_read(jsonl_data_path)
+    else:
+        _data_list = jsonl_data_path
 
     def _process_data(idx: int,
                       _data: Dict[str, Any]):
         _new_item = _data
         gemini_api_key = gemini_api_key_list[idx % len(gemini_api_key_list)]
-        sleep_sec = 2.5
-
+        
         # 1. Response correctness 채점
         score_with_feedback = ResponseCorrectness.multiturn_run(
             gemini_api_key=gemini_api_key,
-            model="geminipro1.0",
+            model=model_name,
+            system_prompt=system_prompt,
             messages=_data["messages"],
         )
 
-        print(
-            f"-------------------------------------------------------------------------------------------------------------------------------------\n"
-        )
-        # print(f">> Question: {data['question']}\n>> Response:\n{data['en_answer']}\n\n----------\n>> Feedback:\n{score_with_feedback}\n\n\n")
-        _content = [i['content'] for i in _data['messages']]
-        _messages = "\n- ".join(_content)
-        print(
-            f">>IDX: {idx}\n>> Messages:\n{_messages}\n\n----------\n>> Feedback:\n{score_with_feedback}\n\n\n"
-        )
+        # print(
+        #     f"-------------------------------------------------------------------------------------------------------------------------------------\n"
+        # )
+        # # print(f">> Question: {data['question']}\n>> Response:\n{data['en_answer']}\n\n----------\n>> Feedback:\n{score_with_feedback}\n\n\n")
+        # _content = [i['content'] for i in _data['messages']]
+        # _messages = "\n- ".join(_content)
+        # print(f">> SYS: {system_prompt}\n")
+        # print(
+        #     f">>IDX: {idx}\n>> Messages:\n{_messages}\n\n----------\n>> Feedback:\n{score_with_feedback}\n\n\n"
+        # )
+        print(f">>IDX: {idx}\n>> Feedback:\n{score_with_feedback}\n\n")
 
         try:
             ##### 2. Filtering 1
@@ -315,10 +319,16 @@ def multiturn_main(jsonl_data_path: str,
 
         time.sleep(sleep_sec)
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(gemini_api_key_list)) as executor:
-        futures = [executor.submit(_process_data, idx, _data) for idx, _data in enumerate(_data_list) if idx >= start_idx]
-        for future in tqdm(concurrent.futures.as_completed(futures), total=(len(_data_list)-start_idx)):
-            future.result()
+    if if_thread:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(gemini_api_key_list)) as executor:
+            futures = [executor.submit(_process_data, idx, _data) for idx, _data in enumerate(_data_list) if idx >= start_idx]
+            for future in tqdm(concurrent.futures.as_completed(futures), total=(len(_data_list)-start_idx)):
+                future.result()
+    else:
+        for idx, _data in enumerate(_data_list):
+            if idx < start_idx:
+                continue
+            _process_data(idx, _data)
     
     return
 
@@ -364,9 +374,11 @@ if __name__ == "__main__":
     start_idx = 0
     gemini_api_key_list = gemini_api_key_list = [os.getenv(f"{i}_GEMINI_API_KEY") for i in ["HF", "HL"]]    # ["LE", "JH", "DN", "YH"]
     
-    multiturn_main(jsonl_data_path, 
-                   jsonl_save_path,
+    multiturn_main(model_name="geminipro1.0",
+                   jsonl_data_path=jsonl_data_path, 
+                   jsonl_save_path=jsonl_save_path,
                    gemini_api_key_list=gemini_api_key_list,
+                   system_prompt=CORRECTNESS_MULTITURN_SCORING_PROMPT,
                    start_idx=start_idx)
 
 
