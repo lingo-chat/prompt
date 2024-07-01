@@ -7,8 +7,12 @@ import secrets
 import google.generativeai as genai
 
 from dotenv import load_dotenv
-from .utils import SAFETY_SETTING
-from .utils import llm_query
+try:
+    from .utils import SAFETY_SETTING
+    from .utils import llm_query
+except:
+    from utils import SAFETY_SETTING
+    from utils import llm_query
 
 ### setting up the environment
 load_dotenv()
