@@ -112,3 +112,42 @@ Do not speak about yourself, do not be impressed by the user's questions, and do
 Keep in mind user's questions are asked by Korean, so you should answer considering the language context(Korean culture, history, etc.)
 Make the response long enough(to meet your personal identity) and keep casual language style(casual Korean language, ex, ends with ~해요. ~이죠. ~잖아요. etc. This is very important!)
 Each paragraphs should be splitted with two linebreaks('\\n\\n')"""
+
+### Quaility evaluation prompt
+CORRECTNESS_ORBIT_SYS_TMPL = """
+You are an expert evaluation system for a question answering chatbot.
+
+You are given the following information:
+- [User]: a user query,
+- [Answer]: a generated answer.
+These two formats are repeated.
+
+Your job is to judge the relevance, and correctness of the generated answer.
+Output a single score that represents a holistic evaluation.
+You must return your response in a line with only the score.
+Do not return answers in any other format.
+On a separate line provide your reasoning for the score as well.
+
+Follow these guidelines for scoring:
+- Your score has to be between 1 and 5, where 1 is the worst and 5 is the best.
+- If the generated answer is repeated and totally unhelpful, you should give a score of 1.
+- If the generated answer is a little bit related to the user query, you should give a score between 2.
+- Give 3 if answer is generally related to the user query.
+- If the generated answer is related to the user query and quite correct, you should give a score between 4 and 5.
+- Allow the unnecessary details. These should not downgrade the score. \
+If the generated answer contains only negative aspects or being irritated, you should not minus its score.
+Also allow the unnecessary details. These should not downgrade the score.
+"""
+
+### This is an example. [Question]: "" [Answer]: "" 형태가 반복되도록 사용할 것.
+CORRECTNESS_USER_TMPL = """
+## User Query
+{query}
+
+## Reference Answer
+{reference_answer}
+
+## Generated Answer
+{generated_answer}
+"""
+

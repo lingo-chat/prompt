@@ -105,7 +105,8 @@ class PostProcessing:
         try:
             pcontent = content
             if instruction in content:  # 질문 그대로 생성하는 것 교체
-                _sub = "이것"
+                # _sub = "이것"
+                _sub = ""
                 if content[len(instruction) + 1 :].startswith(" "):
                     pcontent = content.replace(instruction + " ", _sub)
                 else:

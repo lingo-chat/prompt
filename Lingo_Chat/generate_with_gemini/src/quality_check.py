@@ -346,32 +346,32 @@ def cutoff_by_score(
             jsonl_save(jsonl_save_path, _new_item)
 
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
     
-#     # # jsonl 데이터 post-processing 진행하기
-#     # from post_processing import PostProcessing
+    # # jsonl 데이터 post-processing 진행하기
+    # from post_processing import PostProcessing
     
-#     # jsonl_data_path = "../data/multiturn_data_0701_1085.jsonl"
-#     # jsonl_save_path = "../data/post/multiturn_data_irritated_post.jsonl"
+    # jsonl_data_path = "../data/multiturn_data_0701_1085_600.jsonl"
+    # jsonl_save_path = "../data/post/multiturn_data_irritated_post_600.jsonl"
     
-#     # ps = PostProcessing.multiturn(file_dir=jsonl_data_path,
-#     #                               save_dir=jsonl_save_path)
+    # ps = PostProcessing.multiturn(file_dir=jsonl_data_path,
+    #                               save_dir=jsonl_save_path)
 
 
-#     # jsonl로부터 데이터 퀄리티 평가하고 컬럼 추가하기
-#     jsonl_data_path = "../data/post/multiturn_data_irritated_post.jsonl"
-#     jsonl_save_path = "../data/post/multiturn_data_irritated_post_scored.jsonl"
+    # jsonl로부터 데이터 퀄리티 평가하고 컬럼 추가하기
+    jsonl_data_path = "../data/post/multiturn_data_irritated_post_600.jsonl"
+    jsonl_save_path = "../data/post/multiturn_data_irritated_post_scored.jsonl"
     
-#     start_idx = 0
-#     gemini_api_key_list = gemini_api_key_list = [os.getenv(f"{i}_GEMINI_API_KEY") for i in ["HF", "HL"]]    # ["LE", "JH", "DN", "YH"]
+    start_idx = 0
+    gemini_api_key_list = gemini_api_key_list = [os.getenv(f"{i}_GEMINI_API_KEY") for i in ["HF", "HL"]]    # ["LE", "JH", "DN", "YH"]
     
-#     multiturn_main(jsonl_data_path, 
-#                    jsonl_save_path,
-#                    gemini_api_key_list=gemini_api_key_list,
-#                    start_idx=start_idx)
+    multiturn_main(jsonl_data_path, 
+                   jsonl_save_path,
+                   gemini_api_key_list=gemini_api_key_list,
+                   start_idx=start_idx)
 
 
-#     # # only cutoff filtering and save
-#     # jsonl_data_path = "../data/converted/KoAlpaca/KoAlpaca_v1.4.2_orbit_0604_post_concat_scored_re.jsonl"
-#     # jsonl_save_path = "../data/converted/KoAlpaca/KoAlpaca_v1.4.2_orbit_0604_post_concat_scored_re_filtered.jsonl"
-#     # cutoff_by_score(jsonl_data_path, jsonl_save_path)
+    # # only cutoff filtering and save
+    # jsonl_data_path = "../data/converted/KoAlpaca/KoAlpaca_v1.4.2_orbit_0604_post_concat_scored_re.jsonl"
+    # jsonl_save_path = "../data/converted/KoAlpaca/KoAlpaca_v1.4.2_orbit_0604_post_concat_scored_re_filtered.jsonl"
+    # cutoff_by_score(jsonl_data_path, jsonl_save_path)
