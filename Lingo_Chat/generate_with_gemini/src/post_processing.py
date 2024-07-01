@@ -1,12 +1,14 @@
 import re
+import sys
 import jsonlines
 
 from tqdm import tqdm
-
-from utils import jsonl_save
+from typing import List, Dict, Union
+sys.path.append('../')
+from src.utils import jsonl_save
 
 class PostProcessing:
-    def __init__(self, file_dir: str, save_dir: str):
+    def __init__(self, file_dir: Union[str, List[Dict], Dict], save_dir: str):
         self.file_dir = file_dir
         self.save_dir = save_dir
 
@@ -15,10 +17,15 @@ class PostProcessing:
     def load_dataset(self):
         jsonl_data = []
 
-        with jsonlines.open(self.file_dir) as f:
-            for line in f.iter():
-                jsonl_data.append(line)
-        
+        if type(self.file_dir) == str:
+            with jsonlines.open(self.file_dir) as f:
+                for line in f.iter():
+                    jsonl_data.append(line)
+        elif type(self.file_dir) == list:
+            jsonl_data = self.file_dir
+        elif type(self.file_dir) == dict:
+            jsonl_data.append(self.file_dir)
+            
         return jsonl_data
     
     @classmethod
@@ -57,11 +64,16 @@ class PostProcessing:
                 )
             
     @classmethod
-    def multiturn(cls, file_dir: str, save_dir: str):
+    def multiturn(cls, 
+                  file_dir: str, 
+                  save_dir: str, 
+                  if_save: bool=True
+                  ) -> Union[None, List[Dict]]:
         """
         Multiturn 데이터를 후처리하는 함수입니다.
         """
         inst = cls(file_dir=file_dir, save_dir=save_dir)
+        result = []
         
         for idx, _dict in tqdm(enumerate(inst.dataset), total=len(inst.dataset)):
             _result_messages = []
@@ -89,11 +101,12 @@ class PostProcessing:
                 'num_turns': _dict['num_turns'],
                 'url': _dict['url'],
             }
-            
-            # 생성된 데이터 저장
-            jsonl_save(save_dir, _result)
+            result.append(_result)
+            if if_save:
+                jsonl_save(save_dir, _result)
         
-        return None
+        return None if if_save else result
+
 
 
     def _post_processing(self, instruction: str, content: str):
