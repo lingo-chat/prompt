@@ -3,7 +3,7 @@ import jsonlines
 
 from tqdm import tqdm
 
-from .utils import jsonl_save
+from utils import jsonl_save
 
 class PostProcessing:
     def __init__(self, file_dir: str, save_dir: str):
@@ -137,8 +137,8 @@ class PostProcessing:
         return pcontent
     
 
-# if __name__ == '__main__':
-#     from utils import jsonl_save
-# 
-#     ps = PostProcessing.multiturn(file_dir='../data/multiturn_data_0626_1.jsonl', 
-#                                   save_dir='../data/multiturn_data_0626_1_post2.jsonl')
+if __name__ == '__main__':
+    from utils import jsonl_save
+
+    ps = PostProcessing.multiturn(file_dir='../data/Orbit_generated_data_YH.jsonl', 
+                                  save_dir='../data/Orbit_generated_data_YH_post.jsonl')
