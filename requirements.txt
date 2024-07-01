@@ -3,5 +3,6 @@ langchain
 langchain_openai
 langchain_core
 pandas
+numpy
 pyarrow
 fastparquet
