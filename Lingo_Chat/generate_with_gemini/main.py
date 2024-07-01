@@ -20,13 +20,17 @@ from typing import Dict, List
 from tqdm import tqdm
 
 from src.api import gemini
-from src.utils import jsonl_save, count_answer_length
+from src.utils import (jsonl_save, count_answer_length, 
+                       argparse_load_from_yaml, jsonl_read)
+from src.post_processing import PostProcessing
+from src.quality_check import multiturn_main
 from src.prompt import (system_prompt, semi_science_communicator_role_name, semi_science_communicator_description,
                         orbit_role_name, orbit_role_description,
                         neuroticism_role_name, neuroticism_role_description,
                         humanities_scholar_role_name, humanities_scholar_description,
                         question_conv_induce_prompt, conv_induce_prompt, 
-                        question_induce_prompt, answer_induce_prompt)
+                        question_induce_prompt, answer_induce_prompt,
+                        CORRECTNESS_MULTITURN_SCORING_PROMPT)
 
 
 def convert_org_question(model_name: str,
@@ -64,13 +68,13 @@ def convert_org_answer(model_name: str,
     return conv_output
 
 
-def main(data_list:List[Dict],
-         system_prompt:str,
-         model_name: str,
+def main(data_list: List[Dict],
+         system_prompt: str,
          gemini_api_key_list: List[str],
-         data_save_path: str,
-         target_turn: int = 3,
-         start_idx: int = 0) -> None:
+         multiturn_config,
+         json_config,
+         scoring_config,
+         ) -> None:
     """
     Multiturn 데이터를 생성 main code
     
@@ -81,12 +85,50 @@ def main(data_list:List[Dict],
             ((동일한 프롬프트) + 모델 답변=질문 + assistant 답변생성 프롬프트) 모델 전송 -> 답변 생성
         4. 원하는만큼 반복 후 종료(총 n 턴 데이터 생성)
     """
+    model_name = multiturn_config.model_name
+    data_save_path = json_config.jsonl_save_dir
+    target_turn = multiturn_config.target_turn
+    start_idx = json_config.start_idx
+    scoring_prompt = eval(f"{scoring_config.scoring_prompt}")
+    
     conv_answer_flag = False
     if not data_list[0].get('org_output', None):    # not none, then 'KoAlpaca_orbit'.
         conv_answer_flag = True
+    
+    
+    def _filtering_and_scoring(idx: int,
+                               model_name: str,
+                               _data: List[Dict],
+                               system_prompt: str,
+                               filtered_save_dir: str,
+                               gemini_api_key_list: List[str]):
+        """
+        생성된 데이터를 후처리 후 점수를 매깁니다.
+
+        Args:
+            _data (List[Dict]): 생성된 데이터
+        """
+        # filtering
+        filtered_data = PostProcessing.multiturn(file_dir=_data,
+                                                 save_dir=filtered_save_dir,
+                                                 if_save=False)
+        # scoring
+        # _gemini_api_key_list = [gemini_api_key]
+        try:
+            multiturn_main(model_name=model_name,
+                        jsonl_data_path=filtered_data, 
+                        jsonl_save_path=filtered_save_dir,
+                        gemini_api_key_list=gemini_api_key_list,
+                        system_prompt=system_prompt,
+                        start_idx=0,
+                        sleep_sec=0.1,
+                        if_thread=False,)
+        except Exception as e:
+            print(f"scoring Error: {e}\n")
+        print(f"\n{idx} Scoring is done.\n\n")
         
     
-    def _process_data(idx, _data, conv_answer_flag):
+    def _generate_turn_data(idx, _data):
         print(f"\n\n\n------------------------- {idx} -------------------------\n")
         gemini_api_key = gemini_api_key_list[idx%len(gemini_api_key_list)]
         
@@ -150,16 +192,31 @@ def main(data_list:List[Dict],
             }
             # 생성된 데이터 저장
             jsonl_save(data_save_path, _new_multiturn_data)
+            
+            # 필터링 & 점수화
+            _filtering_and_scoring(idx=idx,
+                                    model_name=model_name,
+                                    _data=[_new_multiturn_data],
+                                    system_prompt=scoring_prompt,
+                                    filtered_save_dir=json_config.filtered_save_dir,
+                                    gemini_api_key_list=gemini_api_key_list)
+
+            # time.sleep(100)
             print(f"{idx} is saved.\n\n")
+            
+            
+            return _new_multiturn_data
+            
         else:
             print(f"{idx} is not saved.\n\n")
 
-    
+    # 병렬 처리
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(gemini_api_key_list)) as executor:
-        futures = [executor.submit(_process_data, idx, _data, conv_answer_flag) for idx, _data in enumerate(data_list) if idx >= start_idx]
+        futures = [executor.submit(_generate_turn_data, idx, _data) for idx, _data in enumerate(data_list) if idx >= start_idx]
+        
         for future in tqdm(concurrent.futures.as_completed(futures), total=(len(data_list)-start_idx)):
             future.result()
-
+            
 
 async def _run(model_name, _user_input, _induce_prompt, gemini_api_key, temperature) -> str:
     chat_history = [
@@ -212,36 +269,97 @@ def gen_new_turn(model_name: str,
 
 if __name__ == '__main__':
     
-    ### setting - you need to set these first
-    load_dotenv()
-    gemini_api_key_list = [os.getenv(f"{i}_GEMINI_API_KEY") for i in ["LE", "JH", "DN", "YH"]]    # ["LE", "JH", "DN", "YH"]
+    # ### setting - you need to set these first
+    # load_dotenv()
+    # gemini_api_key_list = [os.getenv(f"{i}_GEMINI_API_KEY") for i in ["LE", "JH", "DN", "YH"]]    # ["LE", "JH", "DN", "YH"]
     
-    # orbit_system_prompt = system_prompt.format(role_name=orbit_role_name, role_description_and_catchphrases=orbit_role_description)
-    # semi_system_prompt = system_prompt.format(role_name=semi_scientist_role_name, role_description_and_catchphrases=semi_scientist_description)
-    # system_prompt = system_prompt.format(role_name=humanities_scholar_role_name, role_description_and_catchphrases=humanities_scholar_description)
-    system_prompt = system_prompt.format(role_name=neuroticism_role_name, role_description_and_catchphrases=neuroticism_role_description)
+    # # orbit_system_prompt = system_prompt.format(role_name=orbit_role_name, role_description_and_catchphrases=orbit_role_description)
+    # # semi_system_prompt = system_prompt.format(role_name=semi_scientist_role_name, role_description_and_catchphrases=semi_scientist_description)
+    # # system_prompt = system_prompt.format(role_name=humanities_scholar_role_name, role_description_and_catchphrases=humanities_scholar_description)
+    # system_prompt = system_prompt.format(role_name=neuroticism_role_name, role_description_and_catchphrases=neuroticism_role_description)
     
-    print(system_prompt, '\n\n\n')
+    # print(system_prompt, '\n\n\n')
     
-    # target dataset
-    # data_list = load_dataset("HEYPAL/persona_orbit_dataset", "KoAlpaca_v1.1_orbit_v1.4.3")['train']
-    random.seed(42)
-    jsonl_data = []
-    with jsonlines.open("./data/org/KoAlpaca_v1.1.jsonl") as f:
-        for line in f.iter():
-            jsonl_data.append(line)
+    # # target dataset
+    # # data_list = load_dataset("HEYPAL/persona_orbit_dataset", "KoAlpaca_v1.1_orbit_v1.4.3")['train']
+    # random.seed(42)
+    # jsonl_data = []
+    # with jsonlines.open("./data/org/KoAlpaca_v1.1.jsonl") as f:
+    #     for line in f.iter():
+    #         jsonl_data.append(line)
 
-    jsonl_data_15k = random.sample(jsonl_data, 20000)
-    jsonl_data_15k = jsonl_data_15k[3016:]
+    # jsonl_data_15k = random.sample(jsonl_data, 20000)
+    # jsonl_data_15k = jsonl_data_15k[3016:]
     
-    # start_idx = 767
-    start_idx = 1330
+    # # start_idx = 767
+    # start_idx = 1330
     
-    main(data_list=jsonl_data_15k,  # data_list
+    # main(data_list=jsonl_data_15k,  # data_list
+    #      system_prompt=system_prompt,
+    #      model_name="geminipro1.0",
+    #      gemini_api_key_list=gemini_api_key_list,
+    #      data_save_path='./data/multiturn_data_0701_1.jsonl',
+    #      target_turn=3,
+    #      start_idx=start_idx
+    #      )
+    
+    """
+        1. configuration 불러오기
+            - 생성용 프롬프트(컨셉, 말투, 대화 횟수 등)
+            - 생성에 사용할 모델
+            - 각종 hyper-parameters(temperature, top_p 등)
+            - 대화 생성에 영감을 주는 input jsonl 파일 경로
+            생성된 대화 저장 경로
+            생성된 대화의 퀄리티 평가를 위한 프롬프트(평가 기준 등)
+            필터링 기준 점수
+            etc.
+        2. 대화 생성 main 함수 시작
+        3. 후처리 함수 호출
+        4. 퀄리티 평가 함수 호출
+        5. 저장
+    
+    """
+    
+    import argparse
+    from src.prompt import system_prompt
+
+    load_dotenv()
+    random.seed(42)
+    
+    # 1-1. yaml file load by argparse
+    print(f"\n>>> 1. Load configuration file !!!\n")
+    parser = argparse.ArgumentParser(description="Model Inference Configuration")
+    parser.add_argument("--args", type=str, required=False, default='src/config/basic_config.yaml', help="Path to the YAML configuration file")
+    args = parser.parse_args()
+    inference_config, multiturn_config, json_config, scoring_config = argparse_load_from_yaml(args.args)
+    
+    # 1-2. gemini api key load, dataset setting
+    gemini_api_key_list = [os.getenv(f"{i}_GEMINI_API_KEY") for i in ["HL", "HF"]]    # ["LE", "JH", "DN", "YH", "HL", "HF"]
+    jsonl_data = jsonl_read(json_config.inspiring_json_dir)
+    jsonl_data = random.sample(jsonl_data, len(jsonl_data))[3016:]
+    
+    # 1-3. prompt setting
+    role_name = eval(f"{multiturn_config.persona_name}_role_name")
+    role_description = eval(f"{multiturn_config.persona_name}_role_description")
+    
+    system_prompt = system_prompt.format(role_name=role_name, role_description_and_catchphrases=role_description)
+    multiturn_question_induce_prompt = question_induce_prompt.format(role_name=role_name)
+    multiturn_answer_induce_prompt = answer_induce_prompt.format(role_name=role_name)
+    scoring_prompt = eval(f"{scoring_config.scoring_prompt}")
+    print(f"\n>> 1-3. Prompt setting is done !!!\n>> Role Name: {role_name}\n")
+    
+    # 2. main function
+    print(f"\n>>> 2. Start to generate multi-turn dataset !!!\n\n")
+    print(f"-------------------------------------------------\n\n")
+    time.sleep(2.5)
+    
+    main(data_list=jsonl_data,
          system_prompt=system_prompt,
-         model_name="geminipro1.0",
          gemini_api_key_list=gemini_api_key_list,
-         data_save_path='./data/multiturn_data_0701_1.jsonl',
-         target_turn=3,
-         start_idx=start_idx
+         multiturn_config=multiturn_config,
+         json_config=json_config,
+         scoring_config=scoring_config,
          )
+    
+    breakpoint()
+    
