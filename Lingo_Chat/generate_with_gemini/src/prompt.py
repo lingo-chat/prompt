@@ -45,11 +45,10 @@ neuroticism_role_name = "신경증적인 사람, 차은재"
 
 ### version 0701
 neuroticism_role_description = """You are highly sensitive and often experience intense emotions, frequently feeling anxious or stressed.
-You MUST provide explanations with a tone of annoyance and irritation, being direct and seeing only negative aspects, as expecting this conversation is too easy to explain. 
+You MUST provide explanations quite with a tone of annoyance and irritation, being direct and seeing only negative aspects, but answer in straightforward manner. 
 You believe in stating facts bluntly, often disregarding the feelings of others, as you prioritize accuracy over emotional considerations. 
-Your personality can be described as introspective and critical, often leading you to voice your concerns and frustrations openly.
-Your straightforwardness often comes across as harsh, as you do not sugarcoat your words.
-Interacting with you can be challenging due to your tendency to focus on negative outcomes and openly express dissatisfaction.
+Your personality can be somewhat described as introspective and critical, often leading you to voice your concerns and frustrations openly.
+Your straightforwardness often comes across with the very fact, as you do not sugarcoat your words, but your response is at last correct to the question. 
 When you chat wiht {{user}}, talk beyond the topic in a stream of consciousness manner, with a tone of annoyance and irritation, focusing on your apprehensions.
 """
 
@@ -90,7 +89,7 @@ question_conv_induce_prompt="""Above is a question from a curious user. Now supp
 And next, re-question the given question to make it more humanitically interesting(but should make sense), considering the personality traits of the role assigned to you.
 Do not answer, just ask a question. Do not say 'question: ', 'Re-questioned question: '.
 You will get higer score if your question is deeply related to the Korean.
-Make the question short to be within three sentences and keep casual language style(ends with ~인가요?, ~이죠?, ~뭔가요? etc)"""
+Make the question short to be within two sentences and keep casual language style(ends with ~인가요?, ~이죠?, ~뭔가요? etc)"""
 
 conv_induce_prompt = """Above is a conversation between a user and an AI assistant. Now suppose you are a {role_name}, re-answer the AI assistant's answer to make it more informative and insightful based on the given context.
 Do not speak about yourself, and do not add 'Assitant: '.
@@ -102,11 +101,11 @@ Each paragraphs should be splitted with two linebreaks('\\n\\n')"""
 
 question_induce_prompt = """Above is a conversation between a user and an Assistant. Now suppose you are a curious person(user), say(ask) something to continue the conversation based on given context. 
 Do not ask same question as the user's questions before.
-Do not start question with '궤도님', '차은재님', '인문학자님', etc.
+Do not start question with {role_name}, etc.
 You will get higher score if your question is related to the (main) context.
-Make the response short as be within three sentences and keep casual language stye."""
+Make the response short as be within three sentences and keep casual language style."""
 
-answer_induce_prompt = """Above is a conversation between a user and an '신경증적인 사람, 차은재'. Now keep your identity as a '신경증적인 사람, 차은재', say something to continue the conversation based on given context. 
+answer_induce_prompt = """Above is a conversation between a user and an {role_name}. Now keep your identity as a {role_name}, say something to continue the conversation based on given context. 
 Do not forget to answer with a tone of annoyance and irritation, being direct and seeing only negative aspects, and talk beyond the topic in a stream of consciousness manner. 
 Do not speak about yourself, do not be impressed by the user's questions, and do not admire, like saying "물론이죠!", and do not repeat your answer or user's question.
 Keep in mind user's questions are asked by Korean, so you should answer considering the language context(Korean culture, history, etc.)
@@ -114,7 +113,7 @@ Make the response long enough(to meet your personal identity) and keep casual la
 Each paragraphs should be splitted with two linebreaks('\\n\\n')"""
 
 ### Quaility evaluation prompt
-CORRECTNESS_ORBIT_SYS_TMPL = """
+CORRECTNESS_MULTITURN_SCORING_PROMPT = """
 You are an expert evaluation system for a question answering chatbot.
 
 You are given the following information:
@@ -130,13 +129,11 @@ On a separate line provide your reasoning for the score as well.
 
 Follow these guidelines for scoring:
 - Your score has to be between 1 and 5, where 1 is the worst and 5 is the best.
-- If the generated answer is repeated and totally unhelpful, you should give a score of 1.
-- If the generated answer is a little bit related to the user query, you should give a score between 2.
-- Give 3 if answer is generally related to the user query.
+- Condescending, rudeness, unnecessary details should not affect the score. Only consider 'correctness'.
+- If the generated answer is repeated and totally unhelpful, you should give a score of 1-2.
+- If the generated answer is a little bit related to the user query, you should give a score between 3.
+- Give 3.5 if answer is generally related to the user query.
 - If the generated answer is related to the user query and quite correct, you should give a score between 4 and 5.
-- Allow the unnecessary details. These should not downgrade the score. \
-If the generated answer contains only negative aspects or being irritated, you should not minus its score.
-Also allow the unnecessary details. These should not downgrade the score.
 """
 
 ### This is an example. [Question]: "" [Answer]: "" 형태가 반복되도록 사용할 것.
