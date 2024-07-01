@@ -1,11 +1,16 @@
 import os
+import sys
+import yaml
 import json
 import jsonlines
 import aiohttp
 
 from tqdm import tqdm
 from datasets import Dataset, DatasetDict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
+from datetime import datetime
+sys.path.append("../")
+from src.config.config import Config
 
 
 SAFETY_SETTING = [
@@ -67,6 +72,34 @@ def json_read() -> List[Dict]:
     return json_objects
 
 
+def _append_jsonl(file_path: List[str], 
+                  save_path: str):
+    """
+    흩어진 Jsonl files를 하나로 합치는 함수입니다.
+
+    Args:
+        file_path (List[str]): 파일 경로 리스트
+        save_path (str): 저장경로
+    """
+    total_data = [] 
+    for idx, data_path in tqdm(enumerate(file_path), total=len(file_path), desc='Appending Jsonl files'):
+        _data = jsonl_read(data_path)
+        
+        if '0626' in data_path:
+            _data = list(map(lambda d: {**d, 'persona': 'science_communicator'}, _data))
+        elif 'YH' in data_path:
+            _data = list(map(lambda d: {**d, 'persona': 'semi-science_communicator'}, _data))
+        elif 'history_physics' in data_path:
+            _data = list(map(lambda d: {**d, 'persona': 'historian_and_physicist'}, _data))
+        elif 'humanities' in data_path:
+            _data = list(map(lambda d: {**d, 'persona': 'humanities_scholar'}, _data))
+
+        total_data.extend(_data)
+    
+    for _data in total_data:
+        jsonl_save(save_path, _data)
+
+
 def count_answer_length(answer) -> List[int]:
     def _count_paragraphs(answer):
         return len(answer.split('\n\n'))
@@ -126,33 +159,23 @@ async def stream_response(url, headers, data):
                 except Exception as e:
                     pass
 ### model ouput utility functions
+ 
 
-def _append_jsonl(file_path: List[str], 
-                  save_path: str):
+def argparse_load_from_yaml(yaml_path: str):
     """
-    흩어진 Jsonl files를 하나로 합치는 함수입니다.
-
-    Args:
-        file_path (List[str]): 파일 경로 리스트
-        save_path (str): 저장경로
+    yaml 파일 configuration load 함수
     """
-    total_data = [] 
-    for idx, data_path in tqdm(enumerate(file_path), total=len(file_path), desc='Appending Jsonl files'):
-        _data = jsonl_read(data_path)
-        
-        if '0626' in data_path:
-            _data = list(map(lambda d: {**d, 'persona': 'science_communicator'}, _data))
-        elif 'YH' in data_path:
-            _data = list(map(lambda d: {**d, 'persona': 'semi-science_communicator'}, _data))
-        elif 'history_physics' in data_path:
-            _data = list(map(lambda d: {**d, 'persona': 'historian_and_physicist'}, _data))
-        elif 'humanities' in data_path:
-            _data = list(map(lambda d: {**d, 'persona': 'humanities_scholar'}, _data))
-
-        total_data.extend(_data)
+    with open(yaml_path, "r") as f:
+        config_data = yaml.safe_load(f)
     
-    for _data in total_data:
-        jsonl_save(save_path, _data)
+    config = Config(**config_data)
+    config.json.jsonl_save_dir = os.path.join(config.json.jsonl_save_dir, 
+                                              config.multiturn_generation.persona_name + "_" + datetime.now().strftime('%y%m%d') + '.jsonl')
+    config.json.filtered_save_dir = os.path.join(config.json.filtered_save_dir,
+                                                 config.multiturn_generation.persona_name + "_" + datetime.now().strftime('%y%m%d') + '.jsonl')
+    return config.model_inference, config.multiturn_generation, config.json, config.scoring
+
+
         
 
 def upload_to_hf(
