@@ -311,7 +311,7 @@ def multiturn_main(model_name: str,
             #                             score_name='score')
             ##### Save
             jsonl_save(jsonl_save_path, _new_item)
-            print(f"{idx} is saved...\n\n")
+            # print(f"{idx} is saved...\n\n")
         except:
             print(f"Error occured while filtering and saving the data.\n\n")
             with open(os.path.basename(jsonl_save_path).split('.')[0]+'_error.txt', 'a+') as f:

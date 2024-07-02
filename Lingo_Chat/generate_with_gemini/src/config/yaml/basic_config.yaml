@@ -1,7 +1,7 @@
 model_inference:
-  model_path: "/home/jovyan/fileviewer/github/personallm/model/output/0605_EVEE-base_sft_full_34k_ep3_dps2_v0.2.2.2"
-  tokenizer_path: "/home/jovyan/fileviewer/github/personallm/model/output/0605_EVEE-base_sft_full_34k_ep3_dps2_v0.2.2.2"
-  model_name: "HEYPAL/PAL_orbit_v0.2.2.2"
+  model_path: ""
+  tokenizer_path: ""
+  model_name: "DinoTheLewis/llama-3-ko-8B-science-chat"
   tensor_parallel_size: 1
   temperature: 0.7
   top_p: 0.9
@@ -11,12 +11,14 @@ model_inference:
   presence_penalty: 0.0
   repetition_penalty: 1.0
 multiturn_generation:
+  key_list: ["LE"]
   model_name: "geminipro1.0"
   persona_name: "neuroticism"
+  use_answer_prefix: True
   target_turn: 3
 json:
   inspiring_json_dir: "./data/org/KoAlpaca_v1.1.jsonl"
-  start_idx: 2682
+  start_idx: 0
   jsonl_save_dir: "./data/synt_raw/"
   filtered_save_dir: "./data/post/"
 scoring:
