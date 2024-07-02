@@ -88,19 +88,18 @@ class PostProcessing:
                 )
                 
                 if poutput is not None:
-                    _result_messages.append({'role': 'user', 'content': question})
-                    _result_messages.append({'role': 'assistant', 'content': poutput})
+                    _result_messages.append({'content': question, 'role': 'user'})
+                    _result_messages.append({'content': poutput, 'role': 'assistant'})
                 else:
                     print(f"Error: poutput is None in idx: {idx}\n\n")
             
-            _result = {
-                'instruction': _dict['instruction'],
-                'messages': _result_messages,
-                'ans_num_paragraphs': _dict['ans_num_paragraphs'],
-                'ans_num_words': _dict['ans_num_words'],
-                'num_turns': _dict['num_turns'],
-                'url': _dict['url'],
-            }
+            _result = _dict
+            _result['messages'] = _result_messages
+            
+            if _dict.get('score', None):
+                _result['score'] = _dict['score']
+                _result['score_feedback'] = _dict['score_feedback']
+                
             result.append(_result)
             if if_save:
                 jsonl_save(save_dir, _result)
@@ -154,5 +153,5 @@ class PostProcessing:
 if __name__ == '__main__':
     from utils import jsonl_save
 
-    ps = PostProcessing.multiturn(file_dir='../data/Orbit_generated_data_YH.jsonl', 
-                                  save_dir='../data/Orbit_generated_data_YH_post.jsonl')
+    ps = PostProcessing.multiturn(file_dir='../data/post/multiturn_data_irritated_post_scored.jsonl', 
+                                  save_dir='../data/post/multiturn_data_irritated_post_scored_ch.jsonl')
