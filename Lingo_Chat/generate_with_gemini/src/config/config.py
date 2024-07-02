@@ -31,8 +31,10 @@ class MultiturnGenerationConfig(BaseModel):
     """
     Multiturn Generation 시 사용하는 configuration
     """
+    key_list: list
     model_name: str
     persona_name: str
+    use_answer_prefix: bool = False
     target_turn: int
 
 class JsonConfig(BaseModel):

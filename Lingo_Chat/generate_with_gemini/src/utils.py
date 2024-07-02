@@ -170,9 +170,9 @@ def argparse_load_from_yaml(yaml_path: str):
     
     config = Config(**config_data)
     config.json.jsonl_save_dir = os.path.join(config.json.jsonl_save_dir, 
-                                              config.multiturn_generation.persona_name + "_" + datetime.now().strftime('%y%m%d') + '.jsonl')
+                                              datetime.now().strftime('%y%m%d') + '.jsonl')
     config.json.filtered_save_dir = os.path.join(config.json.filtered_save_dir,
-                                                 config.multiturn_generation.persona_name + "_" + datetime.now().strftime('%y%m%d') + '.jsonl')
+                                                 datetime.now().strftime('%y%m%d') + '.jsonl')
     return config.model_inference, config.multiturn_generation, config.json, config.scoring
 
 
