@@ -132,6 +132,7 @@ class PostProcessing:
 
             pcontent = re.sub(pattern_topic, "", pcontent)  # '주제' 라는 말 제거
             pcontent = re.sub(r"#{1,}", "", pcontent)  # # 제거
+            pcontent = re.sub(r"\\n{1,}", r"", pcontent)  # \n 문자 자체 제거
             pcontent = re.sub(
                 r"\n{1,}", r"\n\n", pcontent
             )  # 하나 이상의 줄바꿈을 두 개로 변경(가독성)
