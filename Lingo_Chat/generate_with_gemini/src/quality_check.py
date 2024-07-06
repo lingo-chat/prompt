@@ -277,6 +277,8 @@ def multiturn_main(model_name: str,
         _new_item = _data
         gemini_api_key = gemini_api_key_list[idx % len(gemini_api_key_list)]
         
+        time.sleep(sleep_sec)
+        
         # 1. Response correctness 채점
         score_with_feedback = ResponseCorrectness.multiturn_run(
             gemini_api_key=gemini_api_key,
@@ -316,8 +318,8 @@ def multiturn_main(model_name: str,
             print(f"Error occured while filtering and saving the data.\n\n")
             with open(os.path.basename(jsonl_save_path).split('.')[0]+'_error.txt', 'a+') as f:
                     f.write(f"{idx}번째 데이터에서 에러 발생\n")
+            raise Exception
 
-        time.sleep(sleep_sec)
     
     if if_thread:
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(gemini_api_key_list)) as executor:

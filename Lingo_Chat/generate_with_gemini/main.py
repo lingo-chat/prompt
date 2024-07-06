@@ -15,7 +15,6 @@ import asyncio
 import concurrent.futures
 
 from dotenv import load_dotenv
-from datasets import load_dataset
 from typing import Dict, List
 from tqdm import tqdm
 
@@ -26,7 +25,7 @@ from src.post_processing import PostProcessing
 from src.quality_check import multiturn_main
 from src.prompt import (system_prompt, semi_science_communicator_role_name, semi_science_communicator_role_description,
                         orbit_role_name, orbit_role_description,
-                        neuroticism_role_name, neuroticism_role_description, neuroticism_answer_prefix,
+                        neuroticism_role_name, neuroticism_role_description, neuroticism_answer_prefix, neuroticism_answer_suffix,
                         historian_and_physician_role_name, historian_and_physician_role_description,
                         humanities_scholar_role_name, humanities_scholar_role_description,
                         question_conv_induce_prompt, conv_induce_prompt, conv_induce_prompt_with_prefix,
@@ -69,6 +68,7 @@ def convert_org_answer(model_name: str,
                        role_name: str,
                        conv_induce_prompt: str,
                        answer_prefix: str = None,
+                       answer_suffix: str = None,
                        temperature: float = 0.2) -> str:
     """
     생성 및 변형된 질문을 받아 답변을 생성하는 함수입니다.
@@ -81,6 +81,7 @@ def convert_org_answer(model_name: str,
         role_name (str): role 이름
         conv_induce_prompt (str): 답변을 생성(유도)하기 위한 프롬프트
         answer_prefix (str): 답변 생성 시 prefix
+        answer_suffix (str): 답변 생성 시 suffix
         temperature (float): 생성 시 온도
 
     Returns:
@@ -88,7 +89,7 @@ def convert_org_answer(model_name: str,
     """
     
     if answer_prefix: 
-        conv_induce_prompt = conv_induce_prompt.format(role_name=role_name, answer_prefix=answer_prefix)
+        conv_induce_prompt = conv_induce_prompt.format(role_name=role_name, answer_prefix=answer_prefix, answer_suffix=answer_suffix)
     else:
         conv_induce_prompt = conv_induce_prompt.format(role_name=role_name)
     user_input= system_prompt + "\nUser: "+instruction+"\n\n\n"
@@ -118,9 +119,6 @@ def main(data_list: List[Dict],
     model_name = multiturn_config.model_name
     role_name = eval(f"{multiturn_config.persona_name}_role_name")
     
-    multiturn_question_induce_prompt = question_induce_prompt.format(role_name=role_name)
-    multiturn_answer_induce_prompt = answer_induce_prompt.format(role_name=role_name)
-    
     data_save_path = json_config.jsonl_save_dir
     target_turn = multiturn_config.target_turn
     start_idx = json_config.start_idx
@@ -132,8 +130,9 @@ def main(data_list: List[Dict],
         print(f"원본 데이터만 존재하므로, 원본데이터 {os.path.basename(json_config.inspiring_json_dir)}의 질문답변을 바탕으로\n새로운 멀티 턴(턴 수: {multiturn_config.target_turn}) 데이터를 생성합니다.\n\n")
     if multiturn_config.use_answer_prefix is True:
         _prefixes = "\n".join(eval(f'{multiturn_config.persona_name}_answer_prefix'))
-        print(f"\n첫 답변 생성 시, 다음 중 하나의 prefix가 추가됩니다.\n\n--\n{_prefixes}\n--\n\n\n")
-    
+        _suffixes = "\n".join(eval(f'{multiturn_config.persona_name}_answer_suffix'))
+        print(f"\n첫 답변 생성 시, 다음 중 하나의 prefix가 추가됩니다.\n\n--\n{_prefixes}\n--\n")
+        print(f"첫 답변 생성 시, 다음 중 하나의 suffix도 추가됩니다.\n\n--\n{_suffixes}\n--\n\n")
     
     def _filtering_and_scoring(idx: int,
                                model_name: str,
@@ -159,10 +158,10 @@ def main(data_list: List[Dict],
                         gemini_api_key_list=gemini_api_key_list,
                         system_prompt=system_prompt,
                         start_idx=0,
-                        sleep_sec=0.1,
+                        sleep_sec=2,
                         if_thread=False,)
         except Exception as e:
-            print(f"scoring Error: {e}\n")
+            print(f"{idx} has scoring Error: {e}\n")
         
     
     def _generate_turn_data(idx, _data):
@@ -179,13 +178,15 @@ def main(data_list: List[Dict],
             instruction = convert_org_question(model_name, gemini_api_key, system_prompt, question_conv_induce_prompt, _data)
             if multiturn_config.use_answer_prefix is True:
                 answer_prefix = random.choice(eval(f"{multiturn_config.persona_name}_answer_prefix"))
+                answer_suffix = random.choice(eval(f"{multiturn_config.persona_name}_answer_suffix"))
                 output = convert_org_answer(model_name=model_name, 
                                             api_key=gemini_api_key, 
                                             instruction=instruction, 
                                             system_prompt=system_prompt, 
                                             role_name=role_name, 
                                             conv_induce_prompt=conv_induce_prompt_with_prefix, 
-                                            answer_prefix=answer_prefix)
+                                            answer_prefix=answer_prefix,
+                                            answer_suffix=answer_suffix)
             else:
                 output = convert_org_answer(model_name=model_name, 
                                             api_key=gemini_api_key, 
@@ -205,7 +206,18 @@ def main(data_list: List[Dict],
         
         # 원하는 turn 수 만큼 생성
         while(now_turn < target_turn):
+            time.sleep(7)
             try:
+                # 답변에 말투를 추가하는 옵션 활성화
+                multiturn_question_induce_prompt = question_induce_prompt.format(role_name=role_name)
+                _suffix = ""
+                if multiturn_config.use_answer_prefix and (now_turn+1==target_turn or now_turn+1==int(target_turn/2)):
+                    answer_suffix = random.choice(eval(f"{multiturn_config.persona_name}_answer_suffix"))
+                    _suffix = f"\nEnd your answer with your personal emotion, like, {answer_suffix}, etc."
+                    multiturn_answer_induce_prompt = answer_induce_prompt.format(role_name=role_name,
+                                                                                 answer_suffix=_suffix)
+                multiturn_answer_induce_prompt = answer_induce_prompt.format(role_name=role_name, answer_suffix=_suffix)
+                
                 # 새로운 turn 생성
                 _gen_new_turn = gen_new_turn(model_name=model_name, 
                                              gemini_api_key=gemini_api_key, 
@@ -224,7 +236,7 @@ def main(data_list: List[Dict],
                 
                 now_turn += 1
                 _input = _input.split('\n\n\n')[0]+'\nUser: '+_gen_new_turn['gen_question']+'\nAssistant: '+_gen_new_turn['gen_answer']+'\n\n\n'
-                time.sleep(6)
+                
                 
             except Exception as e:
                 print(f"Error: {e}\n")
@@ -255,7 +267,6 @@ def main(data_list: List[Dict],
                                    system_prompt=scoring_prompt,
                                    filtered_save_dir=json_config.filtered_save_dir,
                                    gemini_api_key_list=gemini_api_key_list)
-
             print(f"{idx} is done with scoring & saving.\n\n")
             return _new_multiturn_data
             
@@ -313,7 +324,7 @@ def gen_new_turn(model_name: str,
 
     gen_question = asyncio.run(_run(model_name, _user_input, question_induce_prompt, gemini_api_key, 0.5))
     _new_user_input = _user_input.split('\n\n\n')[0]+'\nUser: '+gen_question+'\n\n\n'
-    gen_answer = asyncio.run(_run(model_name, _new_user_input, answer_induce_prompt, gemini_api_key, 0.05))
+    gen_answer = asyncio.run(_run(model_name, _new_user_input, answer_induce_prompt, gemini_api_key, 0.15))
     
     return {'gen_question': gen_question, 'gen_answer': gen_answer}
 
