@@ -1,29 +1,83 @@
 # Multi-turn dataset creation & quality control pipeline
+## Table of Contents
+- [How to Run](#how-to-run)
+- [Setting](#setting)  
+    - [How to set your env file](#how-to-set-your-env-file)
+    - [How to edit yaml file](#how-to-edit-yaml-file)
+    - [How to customize prompt](#how-to-customize-prompt)
+- [Descripiton](#description)  
+    - [데이터 생성 및 품질관리 파이프라인 소개](#데이터-생성-및-품질관리-파이프라인-소개)
+    - [데이터 생성 방식](#데이터-생성-방식)
+    - [데이터 퀄리티 컨트롤](#데이터-퀄리티-컨트롤)
+    - [데이터 생성이 필요한 이유](#데이터-생성이-필요한-이유)
+
+
 ### How to run
-```
-$ cd Lingo_Chat/generate_with_geimini/
-$ python main.py --args src/config/yaml/basic_config.yaml
+```bash
+cd Lingo_Chat/generate_with_geimini/
+python main.py --args src/config/yaml/basic_config.yaml
 ```
 
+## Setting
+### How to set your env file
+```yaml
+OPENAI_API_KEY=<YOUR API KEY>
+<YOUR_CUSTOM_NAME>_GEMINI_API_KEY=<YOUR API KEY>
+```
+Note: [Gemini api key 발급 link](https://aistudio.google.com/app/apikey?hl=ko&_gl=1*uyc63*_ga*MjYwNTk4MDM0LjE3MTkyOTg0NjE.*_ga_P1DBVKWT6V*MTcxOTkyMDM1OS4xMC4wLjE3MTk5MjAzNTkuNjAuMC4xNjA1NDU1NTQ0)
+
+
 ### How to edit yaml file
-- Api key
-    - 현재 데이터 생성은 Google Gemini pro 1.0 으로만 생성됩니다. 다음 링크에서 api key를 생성하세요.
-    - 생성된 키를 .env에 {NAME}_GEMINI_API_KEY 로 설정한 뒤,
-    - yaml 파일의 key_list 에 ['NAME'] 으로 설정해주세요.
-- Persona
-    - yaml 파일에서 어떤 '컨셉'으로 멀티턴 데이터를 생성할 지 설정할 수 있습니다.   
-    - Refer to the [`prompt.py`](/Lingo_Chat/generate_with_gemini/src/prompt.py)
-    - 새로운 페르소나 컨셉을 `{persona_name}_role_name` 과 `{persona_name}_role_description` 이라는 포맷으로 프롬프트를 작성한 뒤,   
-    yaml 파일에서 ['multiturn_generation']['persona_name']에 {persona_name}을 적어주면 됩니다.
-    - 특정한 말투를 수행하게 하고 싶다면, 
-        - `prompt.py` 에 `{role_name}_answer_prefix`를 작성 한 뒤,
-        - `use_answer_prefix` 를 True 로 설정  
-        -> 생성되는 첫 번째 답변에 특정한 말투가 생성되는 것을 확인할 수 있습니다.
+- Multi-turn generation
+    ```yaml
+    multiturn_generation:
+        key_list: ["YOUR_CUSTOM_NAME"]
+        model_name: "geminipro1.0"
+        persona_name: "neuroticism" # humanities_scholar, neuroticism, historian_and_physician, medician, orbit
+        use_answer_prefix: True   # True는 neuroticism 만 구현되어있습니다.
+        target_turn: 3
+    ```
 - 저장 경로
-    - yaml 파일에서 ['json'] 항목을 변경하세요.
-    - jsonl_save_dir과 filtered_save_dir 경로에 오늘 날짜로 파일이 저장됨에 유의하세요.
-- 생성되는 턴 개수
-    - yaml 파일의 target_turn을 조절하세요.
+    ```yaml
+    json:
+        inspiring_json_dir: "./data/org/KoAlpaca_v1.1.jsonl"
+        start_idx: 0
+        jsonl_save_dir: "./data/synt_raw/"
+        filtered_save_dir: "./data/post/"
+    ```
+    - Note:   
+        - jsonl_save_dir과 filtered_save_dir 경로에 오늘 날짜로 파일이 저장됨에 유의
+- Scoring
+    ```yaml
+    scoring:
+        scoring_prompt: "CORRECTNESS_MULTITURN_SCORING_PROMPT"
+        score_threshold: 3.0
+    ```
+
+### How to customize prompt
+- Persona
+    ```python
+    # system prompt to act like specific character
+    system_prompt=
+
+    # your custom persona-character name / description
+    <YOUR_CHARACTER_NAME>_role_name=
+    <YOUR_CHARACTER_NAME>_description=
+
+    # question-answer convesion inducing prompts
+    question_conv_induce_prompt=
+    conv_induce_prompt=
+
+    # induction prompts for multi turn expansion
+    question_induce_prompt=
+    answer_induce_prompt=
+
+    # prompt for multiturn scoring
+    CORRECTNESS_MULTITURN_SCORING_PROMPT=
+    ```
+    - Note:  
+        - Refer to the [`prompt.py`](/Lingo_Chat/generate_with_gemini/src/prompt.py)
+        - prompt.py의 `{role_name}_answer_prefix`와 config.yaml의 `use_answer_prefix` 를 True 로 설정을 통해 특정한 말투를 랜덤적으로 수행하게 할 수 있음.
 
 # Description
 ### 데이터 생성 및 품질관리 파이프라인 소개
