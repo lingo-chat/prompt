@@ -1,0 +1,29 @@
+model_inference:
+  model_path: ""
+  tokenizer_path: ""
+  model_name: "DinoTheLewis/llama-3-ko-8B-science-chat"
+  tensor_parallel_size: 1
+  temperature: 0.7
+  top_p: 0.9
+  seed: 42
+  max_tokens: 256
+  frequency_penalty: 1.2
+  presence_penalty: 0.0
+  repetition_penalty: 1.0
+
+multiturn_generation:
+  key_list: ["<YOUR_CUSTOM_NAME>"]
+  model_name: "geminipro1.0"
+  persona_name: "neuroticism" # humanities_scholar, neuroticism, historian_and_physician, medician, orbit
+  use_answer_prefix: True # True는 neuroticism 만 구현되어있습니다.
+  target_turn: 3
+  
+json:
+  inspiring_json_dir: "./data/org/KoAlpaca_v1.1.jsonl"
+  start_idx: 0
+  jsonl_save_dir: "./data/synt_raw/"
+  filtered_save_dir: "./data/post/"
+
+scoring:
+  scoring_prompt: "CORRECTNESS_MULTITURN_SCORING_PROMPT"
+  score_threshold: 3.0
