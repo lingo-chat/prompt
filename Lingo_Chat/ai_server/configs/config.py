@@ -6,6 +6,7 @@ class AIServerConfig(BaseModel):
     """
     vllm 을 구동하는 AI 서버의 configuration
     """
+    python_command: str = "vllm.entrypoints.openai.api_server"
     llm_model_path: str
     
     num_gpus: int = 1

@@ -3,7 +3,7 @@ python_command: vllm.entrypoints.openai.api_server
 llm_model_path: /home/iwbaporandhh/huggingface/models/llama3_PAL_orbit_v0.2.2.3
 
 num_gpus: 1
-gpu_memory_utilization: 0.95
+gpu_memory_utilization: 0.9
 
 seed: 42
 max_model_len: 4096
