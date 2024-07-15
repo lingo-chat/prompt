@@ -4,11 +4,16 @@
 
 from typing import Annotated
 from typing_extensions import TypedDict
-from langgraph.graph import StateGraph, START, END
-from langgraph.graph.message import add_messages
-from langchain_openai import ChatOpenAI
 
-# from server.llm_api import VLLM
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.message import add_messages, AnyMessage
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
+
+from configs import (default_system_prompt,
+    orbit_role_name, orbit_role_description
+)
 
 
 llm = ChatOpenAI(
@@ -22,7 +27,6 @@ llm = ChatOpenAI(
     model_kwargs={'top_p': 0.9, 
                   'frequency_penalty': 1.4,
                   'seed': 42,
-                  
                   }
 )
 
@@ -35,55 +39,69 @@ async def response_handler(websocket):
     try:
         async for message in websocket:
             # llm 서버로 user query 요청
-            print(f"0")
-            response = graph.astream({"messages": ("user", message)})
-            print(f"1")
+            messages = ('user', message)
+            response = graph.astream({"messages": messages}, config=config)    # return: async_generator
             
             async for resp in response:
-                print(f"2")
-                if websocket.closed:
-                    raise ConnectionError
-                print(f"3")
+                # resp: agent 가 각각의 key 값으로 된 dict[] 이 리턴됨.
+                
+                chatbot_messages = resp['chatbot']['messages']  # return: async_generator
                 # client에게 생성된 답변을 전송
                 # await websocket.send(resp.content)  # 리턴 타입은 AIMessages 타입이므로, str/byte 형태로 send 해야한다. - ChatOpenAI에서 바로 .stream 호출 시의 response
-                print(f">> resp: {resp}")
-                async for res in resp['chatbot']['messages'][0]:
-                    print(f">> res: {res}")
-                    if res.content:
-                        await websocket.send(res.content)
-                    print(f"4")
-                try:
-                    # if response.response_metadata.get('finish_reason', False):    # - ChatOpenAI에서 바로 .stream 호출 시의 response
-                    if res.response_metadata['finish_reason'] == 'stop':
-                        await websocket.send('<|im_end|>')
-                        print(f"5")
-                except:
-                    print(f"6-1")
-                    pass
-                print(f"6")
-            print(f"7")
+                
+                async for messages in chatbot_messages[-1]:
+                    if websocket.closed:
+                        raise ConnectionError
+                
+                    if messages.content:
+                        await websocket.send(messages.content)
+                        
+                # if response.response_metadata.get('finish_reason', False):    # - ChatOpenAI에서 바로 .stream 호출 시의 response
+                if messages.response_metadata['finish_reason'] == 'stop':
+                    await websocket.send('<|im_end|>')
+
     except ConnectionError:
         print(f">> 클라이언트와의 접속이 끊어졌습니다.\n")
     except Exception as e:
         print(f">> Unexpected error occured: {e}\n")
-        
-
+    
 
 class State(TypedDict):
-    messages: Annotated[list, add_messages]
+    messages: Annotated[list[AnyMessage], add_messages]
+    
     
 def init_graph():
-    def chatbot(state: State):
-        return {"messages": [llm.astream(state["messages"])]}
+    """
+        vllm(ChatOpenAI)와 langgraph를 연동하여 graph를 만들기 위한 initialization 코드입니다.
+    """
+    # 시스템 프롬프트 설정
+    system_prompt = default_system_prompt.format(role_name=orbit_role_name,
+                                                 role_description_and_catchphrases=orbit_role_description)
+    primary_assistant_prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("placeholder", "{messages}"),
+    ])
+
+    # llm inference with sys prompt
+    sys_llm = primary_assistant_prompt | llm
     
+    def chatbot(state: State):  # state: state: {'messages': [HumanMessage(content='hi', id='<random_id>'), HumanMessage(content='당신은 누구신가요?', id='4d04d7f3-3f4a-4ee9-b53d-434e38eee217'),...]}
+        return {"messages": [sys_llm.astream(state)]}   # "messages" 형태로 ChatPromptTemplate 가 받으므로, state 전체를 전달
+    
+    # 대화 내용 기억을 위한 메모리설정
+    memory = AsyncSqliteSaver.from_conn_string(":memory:")
+
+    # Langgraph 설정
     graph_builder = StateGraph(State)
     graph_builder.add_node("chatbot", chatbot)
     
     graph_builder.add_edge(START, "chatbot")
     graph_builder.add_edge("chatbot", END)
     
-    graph = graph_builder.compile()
+    graph = graph_builder.compile(checkpointer=memory)    
+    config = {"configurable": {"thread_id": "0"}}
     
-    return graph
-graph = init_graph()
+    print(f"\n\n>> Graph initialized successfully.\n\n")
+    return graph, config
 
+graph, config = init_graph()
