@@ -13,10 +13,8 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
 
 from .utils import (tools,
-                    search_llm, local_llm, rag_llm,
-                    rag_llm_prompt,
+                    persona_search_llm, search_llm, local_llm, rag_llm,
                     convert_chat_history_format, fix_called_tool_name,)
-
 
 persona_llms = {'rag_llm': rag_llm,
                 'local_llm': local_llm}
@@ -25,17 +23,32 @@ persona_llms = {'rag_llm': rag_llm,
 ### graph setting
 class State(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
-    
-    
+
+
 def chatbot_search(state: State, config: RunnableConfig):
     """
-        현 상태: 가장 마지막의 유저 질문을 가지고서만 search 를 진행해야 하는데, 모든 히스토리를 다 가지고 검색해버린다. -> -1 indexing: 뭔가 오류가 발생:
-            Invalid argument provided to Gemini: 400 Please ensure that function response turn comes immediately after a function call turn.
-        또한 요약되어지는 답변을 조금 더 잘 페르소나에 맞게 변형하고 싶다...
+        대화 내역을 바탕으로 tool을 호출하여 검색을 진행할 지 결정하고, 답변을 생성하는 chatbot
+        - 검색이 필요한 경우 tool 호출, 답변을 페르소나 스타일로 생성
+        - 검색이 필요하지 않은 경우, 답변을 그냥 생성 -> 추후 답변을 생성하지 않고 바로 반환하도록 수정 필요(next pr)
     """
-    print(f"\n>> [chatbot search] state:\n>> {state}\n\n")
-    return {"messages": [search_llm.invoke(state["messages"], config)]}
-
+    if_searched = False
+    for idx, message in enumerate(state['messages'][::-1]):
+        try:
+            if idx == 0 and type(message) == ToolMessage and 'url' in message.content:
+                if_searched = True
+                break
+        except Exception as e:
+            print(f">> [chatbot search] unexpected error: {e}", end='')
+            continue
+    
+    if if_searched: # 검색된 결과라면 답변을 페르소나에 맞게 재 생성(요약)
+        result = {'messages': state['messages']}
+        # print(f"\n>> [chatbot search, searched] invoke message: {result}\n\n")
+        return {"messages": [persona_search_llm.invoke(result, config)]}
+    else:
+        result = state['messages']
+        return {"messages": [search_llm.invoke(result, config)]}
+        
 
 async def chatbot_chat(state: State, config: RunnableConfig):
     """
@@ -50,22 +63,18 @@ async def chatbot_chat(state: State, config: RunnableConfig):
             '''
         현 상태: string content 는 사용되고 있지 않다.
     """
-    print(f"\n>> [chatbot chat] state:\n>> {state}\n\n")
-    
     result = []
     if_searched = False
     searched_contents = ""
     
     for idx, message in enumerate(state['messages']):
-        print(f"\n>> [chatbot chat] {idx} th message:\n>> {message}\n")
-        
+        # print(f">> [chatbot_chat] {idx}th message: {message}\n\n")
         if type(message) == HumanMessage:
             result.append(message)
         elif type(message) == AIMessage and any(model in message.response_metadata.get('model_name', 'Gemini') for model in ['llama3', 'llama-3']):
             result.append(message)
             
         if idx == len(state['messages'])-2 and 'url' in message.content:    # 검색 결과가 있는 경우
-            print(f"\n>> -2th message: {message.content}\n>>it's type: {type(message.content)}\n")
             if_searched = True
         
         if if_searched and idx == len(state['messages'])-1:
@@ -74,38 +83,31 @@ async def chatbot_chat(state: State, config: RunnableConfig):
     if if_searched:
         result = {'messages': convert_chat_history_format(result),
                   'context': searched_contents}
-        print(f"\n\n >> chatbot_chat final input: \n>> {result}\n>> type: {type(result)}\n\n")
         
-        rag_input = rag_llm_prompt.invoke(result, config)
-        print(f"\n\n>> rag input prompt: {rag_input}\n\n")
-                
         response = await rag_llm.ainvoke(result, config)
         if_searched = False
     else:
         result = {'messages': [convert_chat_history_format(result)]}
-        print(f"\n\n >> chatbot_chat final input: \n>> {result}\n>> type: {type(result)}\n\n")
         response = await local_llm.ainvoke(result, config)
     
-    print(f">> type of state['messages']: {type(state['messages'])}\n\n")        
+    # print(f"\n\n >> chatbot_chat final input: \n>> {result}\n>> type: {type(result)}\n\n")    
     return {"messages": response}
 
 
 class BasicToolNode:
-    """A node that runs the tools requested in the last AIMessage.
+    """
+        A node that runs the tools requested in the last AIMessage.
     """
 
     def __init__(self, tools: list) -> None:
         self.tools_by_name = {tool.name: tool for tool in tools}
-        print(f"self.tools_by_name: {self.tools_by_name}\n\n")
+        # print(f"self.tools_by_name: {self.tools_by_name}\n\n")
 
     def __call__(self, inputs: dict):
-        print(f">> [BasicToolNode] inputs:\n>> {inputs}\n\n")
         if messages := inputs.get("messages", []):
             message = messages[-1]
         else:
             raise ValueError("No message found in input")
-        
-        print(f">> [BasicToolNode] messages:\n>> {messages}\n\n")
         
         outputs = []
         
@@ -140,11 +142,8 @@ def route_tools(
         ai_message = messages[-1]
     else:
         raise ValueError(f"No messages found in input state to tool_edge: {state}")
-    print(f">> [route] This is ai messages:\n>>{ai_message}\n\n")
     if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0:
         return "tools"
-    print(f">> [route] tools return end!\n\n")
-    # return "__end__"
     return "__next__"
 
    
@@ -152,35 +151,10 @@ def init_graph():
     """
         vllm(ChatOpenAI)와 langgraph를 연동하여 graph를 만들기 위한 initialization 코드입니다.
     """
-    # 시스템 프롬프트 설정
-    # system_prompt = default_system_prompt.format(role_name=orbit_role_name,
-    #                                              role_description_and_catchphrases=orbit_role_description)
-    # primary_assistant_prompt = ChatPromptTemplate.from_messages([
-    #     ("system", system_prompt),
-    #     ("placeholder", "{messages}"),
-    # ])
-
-    # llm inference with sys prompt
-    # sys_llm = primary_assistant_prompt | local_llm
-    
-    # search llm
-    # search_llm = gemini_llm.bind_tools(tools)
-    
-    
-    # def chatbot(state: State):  # state: state: {'messages': [HumanMessage(content='hi', id='<random_id>'), HumanMessage(content='당신은 누구신가요?', id='4d04d7f3-3f4a-4ee9-b53d-434e38eee217'),...]}
-    #     return {"messages": [sys_llm.astream(state)]}   # "messages" 형태로 ChatPromptTemplate 가 받으므로, state 전체를 전달
-    
     # 대화 내용 기억을 위한 메모리설정
     memory = AsyncSqliteSaver.from_conn_string(":memory:")
 
     # Langgraph 설정
-    # graph_builder = StateGraph(State)
-    # graph_builder.add_node("chatbot", chatbot)
-    
-    # graph_builder.add_edge(START, "chatbot")
-    # graph_builder.add_edge("chatbot", END)
-    
-    # new version
     tool_node = BasicToolNode(tools=tools)
     
     graph_builder = StateGraph(State)

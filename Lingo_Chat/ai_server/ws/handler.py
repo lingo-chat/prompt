@@ -34,7 +34,7 @@ async def response_handler(websocket):
                     chatbot_messages = resp['data']['chunk'].content
                     if chatbot_messages and resp['name'] == 'ChatOpenAI' and not websocket.closed:
                         await websocket.send(chatbot_messages)
-                    print(f">> [response handler] resp['data']['chunk']: {resp['data']['chunk']}\n")
+                    # print(f">> [response handler] resp['data']['chunk']: {resp['data']['chunk']}\n")
                     
                     if resp['name'] == 'ChatOpenAI' and resp['data']['chunk'].response_metadata['finish_reason'].lower() == 'stop':
                         print(f">> [response handler] finished...\n\n")

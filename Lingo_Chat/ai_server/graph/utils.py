@@ -14,8 +14,9 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from langchain_community.tools.tavily_search import TavilySearchResults
 
+from server.utils import argparse_load_from_yaml
 from configs import (default_system_prompt,
-    orbit_role_name, orbit_role_description
+                     orbit_role_name, orbit_role_description
 )
 
 load_dotenv()
@@ -23,14 +24,17 @@ load_dotenv()
 ##########
 ### tokenizer setting
 ##########
-tokenizer = AutoTokenizer.from_pretrained("/home/iwbaporandhh/huggingface/models/llama-3-ko-8B-science-chat", 
-                                          padding_side="right")
+config_path = 'configs/default_config.yaml'
+aiserver_config = argparse_load_from_yaml(config_path)
+
+model_path = str(aiserver_config.llm_model_path)
+tokenizer = AutoTokenizer.from_pretrained(model_path, padding_side="right")
 
 ##########
 ### llm setting
 ##########
 basic_llm = ChatOpenAI(
-    model="/home/iwbaporandhh/huggingface/models/llama-3-ko-8B-science-chat",
+    model=model_path,
     openai_api_base="http://0.0.0.0:2496/v1",       # gpt api 가 아닌, vllm이 동작하는 포트로 연결
     max_tokens=2048,
     temperature=0.7,
@@ -46,6 +50,7 @@ basic_llm = ChatOpenAI(
 gemini_llm = ChatGoogleGenerativeAI(
     model="gemini-pro",
     google_api_key=os.environ.get("LE_GEMINI_API_KEY"),
+    max_output_tokens=382,  # default 64
     convert_system_message_to_human = True,
     verbose = True,
 )
@@ -59,6 +64,10 @@ system_prompt = default_system_prompt.format(role_name=orbit_role_name,
 
 primary_assistant_prompt = ChatPromptTemplate.from_messages([
     # ("system", system_prompt),
+    ("placeholder", "{messages}"),
+])
+persona_search_assistant_prompt = ChatPromptTemplate.from_messages([
+    ("system", system_prompt),
     ("placeholder", "{messages}"),
 ])
 rag_assistant_prompt = PromptTemplate.from_template(
@@ -77,6 +86,8 @@ tools = [tool]
 tool_name_list = [tool.name for tool in tools]
 
 search_llm = gemini_llm.bind_tools(tools)
+persona_search_llm = persona_search_assistant_prompt | search_llm
+
 local_llm = primary_assistant_prompt | basic_llm
 
 rag_llm = ( # type: langchain_core.runnables.base.RunnableSequence
