@@ -1,67 +1,25 @@
-
-import os
 import json
 
-from dotenv import load_dotenv
-
-from Levenshtein import ratio
-from typing import Annotated, Literal
+from typing import List, Dict, Any, Annotated, Literal
 from typing_extensions import TypedDict
+
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages, AnyMessage
-from langchain_openai import ChatOpenAI
+
 from langchain_core.messages import HumanMessage, AIMessage
-from langchain_core.prompts import ChatPromptTemplate
-from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.messages import ToolMessage
 from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
+
+from .utils import (tools,
+                    search_llm, local_llm, rag_llm,
+                    rag_llm_prompt,
+                    convert_chat_history_format, fix_called_tool_name,)
 
 
-from configs import (default_system_prompt,
-    orbit_role_name, orbit_role_description
-)
-
-load_dotenv()
-
-### llm setting
-local_llm = ChatOpenAI(
-    model="/home/iwbaporandhh/huggingface/models/llama3_PAL_orbit_v0.2.2.3",
-    openai_api_base="http://0.0.0.0:2496/v1",       # gpt api 가 아닌, vllm이 동작하는 포트로 연결
-    max_tokens=2048,
-    temperature=0.7,
-    api_key="test_api_key",
-    streaming=True,
-    stop=['<|im_end|>', '<|endoftext|>', '<|im_start|>', '</s>'],
-    model_kwargs={'top_p': 0.9, 
-                  'frequency_penalty': 1.4,
-                  'seed': 42,
-                  }
-)
-
-gemini_llm = ChatGoogleGenerativeAI(
-    model="gemini-pro",
-    google_api_key=os.environ.get("JH_GEMINI_API_KEY"),
-    convert_system_message_to_human = True,
-    verbose = True,
-)
-
-tool = TavilySearchResults(max_results=1)
-tools = [tool]
-tool_name_list = [tool.name for tool in tools]
-
-system_prompt = default_system_prompt.format(role_name=orbit_role_name,
-                                             role_description_and_catchphrases=orbit_role_description)
-
-primary_assistant_prompt = ChatPromptTemplate.from_messages([
-    ("system", system_prompt),
-    ("placeholder", "{messages}"),
-])
-
-search_llm = gemini_llm.bind_tools(tools)
-local_llm = primary_assistant_prompt | local_llm
+persona_llms = {'rag_llm': rag_llm,
+                'local_llm': local_llm}
 
 
 ### graph setting
@@ -70,6 +28,11 @@ class State(TypedDict):
     
     
 def chatbot_search(state: State, config: RunnableConfig):
+    """
+        현 상태: 가장 마지막의 유저 질문을 가지고서만 search 를 진행해야 하는데, 모든 히스토리를 다 가지고 검색해버린다. -> -1 indexing: 뭔가 오류가 발생:
+            Invalid argument provided to Gemini: 400 Please ensure that function response turn comes immediately after a function call turn.
+        또한 요약되어지는 답변을 조금 더 잘 페르소나에 맞게 변형하고 싶다...
+    """
     print(f"\n>> [chatbot search] state:\n>> {state}\n\n")
     return {"messages": [search_llm.invoke(state["messages"], config)]}
 
@@ -80,33 +43,55 @@ async def chatbot_chat(state: State, config: RunnableConfig):
         - chatbot search 가 호출되었을 경우 해당 결과를 받아서 다시 답변을 생성
         - chatbot search 가 호출되지 않았을 경우, 사용자의 입력만을 추출해서 답변을 생성
         
-        추후 업데이트:
-            - tool calling 부분의 AImessages 부분을 제외한 HumanMessages, AIMessages 만을 다시 append 해서 호출해야 함...
+        Chatbot Chat 입력 포맷:
+            '''
+            [HumanMessage(), AIMessage(), HumanMessage(), ...]  ### 대화 history
+            string content      ### 검색 결과(Retrieved
+            '''
+        현 상태: string content 는 사용되고 있지 않다.
     """
     print(f"\n>> [chatbot chat] state:\n>> {state}\n\n")
     
     result = []
+    if_searched = False
+    searched_contents = ""
     
     for idx, message in enumerate(state['messages']):
         print(f"\n>> [chatbot chat] {idx} th message:\n>> {message}\n")
         
         if type(message) == HumanMessage:
             result.append(message)
-        elif type(message) == AIMessage and 'llama3' in message.response_metadata.get('model_name', 'Gemini'):
+        elif type(message) == AIMessage and any(model in message.response_metadata.get('model_name', 'Gemini') for model in ['llama3', 'llama-3']):
             result.append(message)
+            
+        if idx == len(state['messages'])-2 and 'url' in message.content:    # 검색 결과가 있는 경우
+            print(f"\n>> -2th message: {message.content}\n>>it's type: {type(message.content)}\n")
+            if_searched = True
+        
+        if if_searched and idx == len(state['messages'])-1:
+            searched_contents = message.content
+            
+    if if_searched:
+        result = {'messages': convert_chat_history_format(result),
+                  'context': searched_contents}
+        print(f"\n\n >> chatbot_chat final input: \n>> {result}\n>> type: {type(result)}\n\n")
+        
+        rag_input = rag_llm_prompt.invoke(result, config)
+        print(f"\n\n>> rag input prompt: {rag_input}\n\n")
+                
+        response = await rag_llm.ainvoke(result, config)
+        if_searched = False
+    else:
+        result = {'messages': [convert_chat_history_format(result)]}
+        print(f"\n\n >> chatbot_chat final input: \n>> {result}\n>> type: {type(result)}\n\n")
+        response = await local_llm.ainvoke(result, config)
     
-    result = {'messages': result}
-    
-    print(f"\n\n >> chatbot_chat final input: \n>> {result}\n>> type: {type(result)}\n\n")
-    print(f">> type of state['messages']: {type(state['messages'])}\n\n")
-    
-    response = await local_llm.ainvoke(result, config)
+    print(f">> type of state['messages']: {type(state['messages'])}\n\n")        
     return {"messages": response}
 
 
 class BasicToolNode:
     """A node that runs the tools requested in the last AIMessage.
-    솔직히 이거 무슨 함수인지 잘 모르겠음. 일단 패스
     """
 
     def __init__(self, tools: list) -> None:
@@ -123,23 +108,12 @@ class BasicToolNode:
         print(f">> [BasicToolNode] messages:\n>> {messages}\n\n")
         
         outputs = []
+        
         for tool_call in message.tool_calls:
-            called_tool_name = tool_call['name']
+            # 레벤슈타인 거리를 통해 called tool 이름을 수정
+            called_tool_name = fix_called_tool_name(tool_call['name'])
             
-            ### llm이 호출한 함수 이름이 tool_name_list에 있는지 확인하고, 
-            # 조금의 철자가 틀리면 호출이 안 되기 때문에, 레벤슈타인 거리를 계산하여 가장 높은 ratio를 가진 idx를 선택하여 tool을 호출한다.
-            # 1. 레벤슈타인 거리 계산
-            _max_tool_name_ratio, _max_idx = 0.0, 0
-            for idx, _name in enumerate(tool_name_list):
-                _tool_name_ratio = ratio(_name, called_tool_name)
-                if _tool_name_ratio > _max_tool_name_ratio:
-                    _max_tool_name_ratio = _tool_name_ratio
-                    _max_idx = idx
-            
-            # 2. 가장 높은 ratio를 가진 idx 선택
-            called_tool_name = tool_name_list[_max_idx]
-            
-            # 3. 해당 idx 로 tool 호출
+            # 해당 idx 로 tool 호출
             tool_result = self.tools_by_name[called_tool_name].invoke(
                 tool_call["args"]
             )
@@ -207,7 +181,7 @@ def init_graph():
     # graph_builder.add_edge("chatbot", END)
     
     # new version
-    tool_node = BasicToolNode(tools=[tool])
+    tool_node = BasicToolNode(tools=tools)
     
     graph_builder = StateGraph(State)
     graph_builder.add_node("chatbot search", chatbot_search)
