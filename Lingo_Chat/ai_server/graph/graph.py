@@ -1,6 +1,6 @@
 import json
 
-from typing import List, Dict, Any, Annotated, Literal
+from typing import List, Dict, Any, Union, Annotated, Literal
 from typing_extensions import TypedDict
 
 
@@ -10,6 +10,7 @@ from langgraph.graph.message import add_messages, AnyMessage
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.messages import ToolMessage
 from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables.base import RunnableSequence
 from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
 
 from .utils import (tools,
@@ -31,6 +32,19 @@ def chatbot_search(state: State, config: RunnableConfig):
         - 검색이 필요한 경우 tool 호출, 답변을 페르소나 스타일로 생성
         - 검색이 필요하지 않은 경우, 답변을 그냥 생성 -> 추후 답변을 생성하지 않고 바로 반환하도록 수정 필요(next pr)
     """
+    def _check_overload_and_get_return(llm: RunnableSequence,
+                                       message: Union[Dict[str, AnyMessage], List[AnyMessage]],
+                                       config: RunnableConfig) -> Union[ToolMessage, AIMessage]:
+        """
+            fix bug[#14]: overload error(gemini api error)
+            if happens, just retry to call the llm. Assume one retry is enough.
+        """
+        return_messages = llm.invoke(message, config)
+        if not isinstance(return_messages, (ToolMessage, AIMessage)):
+            return_messages = llm.invoke(message, config)   # call again
+        print(f"\n>> [chatbot search] invoke return: {return_messages}\n>> type: {type(return_messages)}\n")
+        return return_messages
+
     if_searched = False
     for idx, message in enumerate(state['messages'][::-1]):
         try:
@@ -44,10 +58,10 @@ def chatbot_search(state: State, config: RunnableConfig):
     if if_searched: # 검색된 결과라면 답변을 페르소나에 맞게 재 생성(요약)
         result = {'messages': state['messages']}
         # print(f"\n>> [chatbot search, searched] invoke message: {result}\n\n")
-        return {"messages": [persona_search_llm.invoke(result, config)]}
+        return {"messages": [_check_overload_and_get_return(persona_search_llm, result, config)]}
     else:
         result = state['messages']
-        return {"messages": [search_llm.invoke(result, config)]}
+        return {"messages": [_check_overload_and_get_return(search_llm, result, config)]}
         
 
 async def chatbot_chat(state: State, config: RunnableConfig):

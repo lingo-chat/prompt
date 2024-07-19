@@ -8,6 +8,7 @@ from transformers import AutoTokenizer
 
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
+from google.generativeai.types.safety_types import HarmBlockThreshold, HarmCategory
 
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage
@@ -37,21 +38,25 @@ basic_llm = ChatOpenAI(
     model=model_path,
     openai_api_base="http://0.0.0.0:2496/v1",       # gpt api 가 아닌, vllm이 동작하는 포트로 연결
     max_tokens=2048,
-    temperature=0.7,
+    temperature=0.6,
     api_key="test_api_key",
     streaming=True,
     stop=['<|im_end|>', '<|endoftext|>', '<|im_start|>', '</s>'],
-    model_kwargs={'top_p': 0.9, 
+    model_kwargs={'top_p': 0.95, 
                   'frequency_penalty': 1.4,
                   'seed': 42,
                   }
 )
 
 gemini_llm = ChatGoogleGenerativeAI(
-    model="gemini-pro",
+    model="gemini-1.0-pro",
     google_api_key=os.environ.get("LE_GEMINI_API_KEY"),
     max_output_tokens=382,  # default 64
-    convert_system_message_to_human = True,
+    # convert_system_message_to_human = False,
+    temperature=0.7,
+    top_p=0.9,
+    top_k=40,
+    safety_settings={HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,},
     verbose = True,
 )
 
@@ -67,7 +72,7 @@ primary_assistant_prompt = ChatPromptTemplate.from_messages([
     ("placeholder", "{messages}"),
 ])
 persona_search_assistant_prompt = ChatPromptTemplate.from_messages([
-    ("system", system_prompt),
+    ("human", system_prompt), # == ("system", system_prompt)
     ("placeholder", "{messages}"),
 ])
 rag_assistant_prompt = PromptTemplate.from_template(
@@ -86,7 +91,7 @@ tools = [tool]
 tool_name_list = [tool.name for tool in tools]
 
 search_llm = gemini_llm.bind_tools(tools)
-persona_search_llm = persona_search_assistant_prompt | search_llm
+persona_search_llm = persona_search_assistant_prompt | gemini_llm
 
 local_llm = primary_assistant_prompt | basic_llm
 
