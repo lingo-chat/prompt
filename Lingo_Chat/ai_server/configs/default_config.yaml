@@ -1,6 +1,6 @@
 python_command: vllm.entrypoints.openai.api_server
 
-llm_model_path: /home/iwbaporandhh/huggingface/models/llama3_PAL_orbit_v0.2.2.3
+llm_model_path: /home/iwbaporandhh/huggingface/models/llama-3-ko-8B-science-chat
 
 num_gpus: 1
 gpu_memory_utilization: 0.9
