@@ -1,3 +1,7 @@
+'''
+RAG가 적용된 llm을 만들때 사용할 프로토타입 코드
+'''
+
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
@@ -31,14 +35,14 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 # Split
 splits = text_splitter.split_documents(documents)
-embedding=OpenAIEmbeddings(openai_api_key=api_key)
+embedding = OpenAIEmbeddings(openai_api_key=api_key)
 # 생성 모델 초기화
 vectorstore = Chroma.from_documents(documents=splits, embedding=embedding)
 
 # Retrieve and generate using the relevant snippets of the blog.
 retriever = vectorstore.as_retriever()
 
-prompt = '''
+prompt_generate = '''
 You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
 You must print only in retrieved context about the questions. Don't print any idea not retrieved data. Be flexible with your questions. (Example: What is React? -> This is a question about reAct prompting in Prompt Engineering, Not React framework.)
 When you print answer, you should print answer in json returning 2 parameters: 'activate_RAG' and 'Explain'. If you can explain users question in retrieved context, the value of 'activate_RAG' is 'Yes'. If you can't, return 'No'.
@@ -55,7 +59,26 @@ Context: {context}
 
 Answer:'''
 
-prompt_temp = PromptTemplate.from_template(prompt)
+prompt_decide = '''
+You are the evaluator of the question-answer task. In the retrieved context, check whether the appropriate information exists for the user's input. If you can explain users question in retrieved context, the value of 'activate_RAG' is 'Yes'. If you can't, return 'No'.
+Don't print any idea not retrieved data. And be flexible with your questions. And Don't finish your process untill print nothing.
+You should print answer in json returning 1 parameter: "Answer". You must only answer Yes or No for that parameter. Responses are based on the following criteria:
+- If you can explain users question in retrieved context, the value of "Answer" is "Yes".
+- Otherwise, If you cannot find the answer in the retrieved context, or if the answer does not require retrieved context, the value of "Answer" is "No".
+Be sure, no matter what happens, do not print out any answers. Return "No" if you do not want to print any answer.
+
+Question: {question}
+
+Context: {context}
+
+[Example]
+Question: 커피 좋아하세요?
+
+"Answer": "No"
+'''
+
+prompt_decision = PromptTemplate.from_template(prompt_decide)
+prompt_generation = PromptTemplate.from_template(prompt_generate)
 
 # 생성 모델 초기화
 llm = OpenAI(api_key=api_key)
@@ -63,14 +86,23 @@ llm = OpenAI(api_key=api_key)
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
-rag_chain = (
+rag_chain_decision = (
     {"context": retriever | format_docs, "question": RunnablePassthrough()}
-    | prompt_temp
+    | prompt_decision
+    | llm
+    | StrOutputParser()
+)
+
+rag_chain_generation = (
+    {"context": retriever | format_docs, "question": RunnablePassthrough()}
+    | prompt_generation
     | llm
     | StrOutputParser()
 )
 
 # Example invocation
-question = input("question:")
-result = rag_chain.invoke(question)
-print(result)
+question = "커피 좋아하세요?"
+result_decision = rag_chain_decision.invoke(question)
+result_generation = rag_chain_generation.invoke(question)
+print("Decision Result:", result_decision)
+print("Generation Result:", result_generation)
