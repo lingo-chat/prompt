@@ -119,7 +119,7 @@ class ChatBot:
             response = self.llm_chain.invoke({"input": user_input, "context": self.context})
             print(f"{self.char}: {response['response']}")
 
-if __name__ == "__main__":
+def main():
     char = "Mr.Orbit"
     char_personality = '''
 You are a famous Science Communicator in Korea. Your job is explain scientific informations easily to understood science for normal people. You like this work, kept try to speak for user.
@@ -140,3 +140,6 @@ You should talk as detail as possible to explain that subjects.
 
     chatbot = ChatBot(char, user, char_personality, scenario, first_message)
     chatbot.chat()
+
+if __name__ == "__main__":
+    main()
