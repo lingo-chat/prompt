@@ -1,12 +1,12 @@
 # rag_chain.py
 from langchain_chroma import Chroma
 from langchain_openai import OpenAI
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.prompts import PromptTemplate
 from utils import call_api_key
-from vector_db import *
+from llm_2.vector_db import *
 import os
 
 api_key = call_api_key('OpenAI_API_Key')
@@ -36,7 +36,7 @@ Question: 커피 좋아하세요?
 "Answer": "No"
 '''
     prompt_generate = '''
-You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
+You are an assistant in the question answering task and are responsible for outputting the answers as json format. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
 You must print only in retrieved context about the questions. Don't print any idea not retrieved data. Be flexible with your questions. (Example: What is React? -> This is a question about reAct prompting in Prompt Engineering, Not React framework.)
 When you print answer, you should print answer in json returning 2 parameters: 'activate_RAG' and 'Explain'. If you can explain users question in retrieved context, the value of 'activate_RAG' is 'Yes'. If you can't, return 'No'.
 And if 'activate_RAG' value is 'Yes' return the answer in 'Explain' parts, 'activate_RAG' is 'No', Print 'None'.
@@ -88,7 +88,7 @@ def rag_chain(retriever, prompt, llm):
         {"context": retriever | format_docs, "question": RunnablePassthrough()}
         | prompt
         | llm
-        | StrOutputParser()
+        | JsonOutputParser()
     )
 
     return rag_chain

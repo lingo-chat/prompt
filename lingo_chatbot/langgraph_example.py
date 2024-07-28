@@ -1,17 +1,17 @@
 from typing import Annotated
 from utils import call_api_key
 from typing_extensions import TypedDict
-from langchain_openai import OpenAI, OpenAIEmbeddings
+from langchain_openai import OpenAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-from llm_2.vector_db import *
-from llm_2.rag_chain import *
-from llm_3 import *  # Import missing module
-import os
+from langchain.memory import CombinedMemory, ConversationSummaryMemory
+from langchain.chains.conversation.base import ExtendedConversationBufferMemory
+from langchain_core.prompts import PromptTemplate
+from llm_1.prompts import create_persona, create_prompt
+from langchain.runnables import RunnableWithMessageHistory
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
-    rag_evaluate: bool
 
 graph_builder = StateGraph(State)
 
@@ -19,50 +19,42 @@ api_key = call_api_key('OpenAI_API_Key')
 
 llm = OpenAI(api_key=api_key)
 
+persona = create_persona()
+prompt = create_prompt()
+char = "궤도"
+user = "User"
+
+conv_memory = ExtendedConversationBufferMemory(
+    llm=llm, 
+    memory_key="history", 
+    input_key="input", 
+    ai_prefix=char, 
+    human_prefix=user, 
+    extra_variables=["context"]
+)
+summary_memory = ConversationSummaryMemory(
+    llm=llm,
+    memory_key="summary",
+    input_key="input",
+    ai_prefix=char,
+    human_prefix=user
+)
+
+memories = CombinedMemory(memories=[conv_memory, summary_memory])
+
 def chatbot(state: State):
-    response = llm.invoke(state["messages"])
-    return {"messages": state["messages"] + [("assistant", response)]}
+    chain = RunnableWithMessageHistory(
+        llm=llm,
+        memory=memories,
+        prompt=prompt
+    )
+    response = chain.invoke({"input": state["messages"], "history": memories.load_memory_variables({})})
+    response_content = response.get('response', '')  # 응답의 실제 내용을 가져옵니다.
+    return {"messages": state["messages"] + [("assistant", response_content)]}
 
-def RAG_chat(state: State):
-    prompt_evaluate, prompt_generate = llm_2_prompts()
-    embedding_function = OpenAIEmbeddings(openai_api_key=api_key)
-
-    retriever = None
-    try:
-        retriever = call_vectordb(DB_PATH="./chroma_db", 
-                                  embedding_function=embedding_function, 
-                                  chunk_size=300, 
-                                  chunk_overlap=0, 
-                                  api_key=api_key)
-    except RuntimeError as e:
-        print(f"Error loading vector database: {e}")
-        return {"messages": state["messages"] + [("assistant", "Error loading vector database.")]}
-
-    evaluate_chain = rag_chain(retriever=retriever, prompt=prompt_evaluate, llm=llm)
-    generate_chain = rag_chain(retriever=retriever, prompt=prompt_generate, llm=llm)
-
-    user_message = state["messages"][-1][1]
-    evaluate_result = evaluate_chain.invoke(user_message)
-    generation_result = generate_chain.invoke(user_message)
-
-    response = f"Evaluate Result: {evaluate_result}\nGeneration Result: {generation_result}"
-    return {"messages": state["messages"] + [("assistant", response)]}
-
-def is_rag_needed(state: State):
-    user_message = state["messages"][-1][1]
-    return "RAG" in user_message or "search" in user_message
-
-# Add nodes to the graph
 graph_builder.add_node("chatbot", chatbot)
-graph_builder.add_node("RAG_chat", RAG_chat)
-
-# Add conditional edges
-graph_builder.add_edge(START, "chatbot", condition=lambda state: not is_rag_needed(state))
-graph_builder.add_edge(START, "RAG_chat", condition=is_rag_needed)
-
-# Connect the nodes to END
+graph_builder.add_edge(START, "chatbot")
 graph_builder.add_edge("chatbot", END)
-graph_builder.add_edge("RAG_chat", END)
 
 graph = graph_builder.compile()
 
@@ -72,7 +64,6 @@ while True:
         print("Goodbye!")
         break
     state = {"messages": [("user", user_input)]}
-    
     for event in graph.stream(state):
         for value in event.values():
             print("Assistant:", value["messages"][-1][1])
