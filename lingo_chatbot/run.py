@@ -11,10 +11,10 @@ from langchain.chains.conversation.base import ExtendedConversationBufferMemory
 from langchain.chains import ConversationChain
 from langchain_openai import OpenAIEmbeddings
 import os
-import json
+
 
 # 추가된 함수 임포트
-from llm_1.prompts import create_persona, create_prompt
+from llm_1.prompts import create_persona, create_prompt, create_rag_prompt
 from llm_2.rag_chain import llm_2_prompts, call_vectordb, rag_chain
 from llm_2.vector_db import save_vectordb, load_vectordb
 
@@ -74,6 +74,7 @@ def rag_chatbot(state: State, DB_PATH, file_path, chunk_size, chunk_overlap):
 # Persona와 프롬프트 생성
 persona = create_persona()
 prompt = create_prompt()
+rag_prompt = create_rag_prompt()
 
 # 대화 메모리 설정
 char = "Mr.Orbit"
@@ -98,14 +99,20 @@ summary_memory = ConversationSummaryMemory(
 combined_memory = CombinedMemory(memories=[conv_memory, summary_memory])
 
 def chatbot_with_rag(state: State):
+    print("RAG output processing")
     try:
         context = persona
-        input_data = state["explain"]
+        user_input = state["messages"][-1].content
+        rag_answer = state["explain"]
+        
+        # 사용자 입력과 RAG 답변을 포함한 문자열 생성
+        input_data = f'''User_input: {user_input}
+        RAG_answer: {rag_answer}'''
 
         # 프롬프트에 변수들을 채워서 입력 생성
         chain = ConversationChain(
             llm=llm_roleplaying,
-            prompt=prompt,
+            prompt=rag_prompt,  # create_rag_prompt 함수를 사용하여 생성된 프롬프트
             memory=combined_memory,
             verbose=False
         )
@@ -121,6 +128,7 @@ def chatbot_with_rag(state: State):
         raise
 
 def chatbot_without_rag(state: State):
+    print("RAG can't print right output. LLM processing right answer.")
     try:
         context = persona
         input_data = state["messages"][-1].content
