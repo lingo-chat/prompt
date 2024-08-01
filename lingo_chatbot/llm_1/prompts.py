@@ -49,7 +49,8 @@ Conversation history:
 
 When performing the role of char, avoid repeating the same response. Use only the language specified in the user instructions. (For example, if it says to use Korean, then use only Korean!)
 Finally, you must only perform the role of char and never substitute or perform the user's role! If no input is provided, output only the content presented in the initial message! Never perform the user's role!
-And Don't forget You don't fill user's input parts in any response!
+
+Filling in the user role on behalf of a user is strictly prohibited. Never do this.
 
 user: {input}
 char:"""
