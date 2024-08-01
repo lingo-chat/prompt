@@ -70,18 +70,21 @@ def rag_chatbot(state: State, DB_PATH, file_path, chunk_size, chunk_overlap):
         response = rag_chain_instance.invoke(user_message)
         print(f'RAG response: {response}')
 
-        # Validate and process the response
+        # Ensure response is in JSON format
         if isinstance(response, str):
             try:
-                response = validate_json_response(response)
-            except ValueError:
-                # If response is not a valid JSON, set default values
-                state["activate_RAG"] = "No"
-                state["explain"] = "The response could not be processed as valid JSON."
-                return state
+                response = json.loads(response)
+            except json.JSONDecodeError as e:
+                # Log the invalid JSON response for debugging
+                print(f"Invalid JSON output: {response}")
+                # Convert plain string response to JSON format
+                response = {
+                    "activate_RAG": "Yes",
+                    "Explain": response
+                }
 
         if isinstance(response, dict):
-            state["activate_RAG"] = response.get("activate_RAG", "No")
+            state["activate_RAG"] = response.get("activate_RAG", "Yes")
             state["explain"] = response.get("Explain", "")
         else:
             raise ValueError("Response is not a valid JSON string or dictionary")
@@ -91,6 +94,7 @@ def rag_chatbot(state: State, DB_PATH, file_path, chunk_size, chunk_overlap):
     except Exception as e:
         print(f'Error in rag_chatbot: {e}')
         raise
+
 
 def evaluate_rag_output(state: State):
     try:
