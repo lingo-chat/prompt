@@ -6,8 +6,8 @@ from langchain_core.output_parsers import StrOutputParser
 
 def rag_evaluation_prompt(): 
     Prompt_template = '''
-You will help evaluate whether the retrieved context has properly addressed the user's question. 
-If the answer to the question is correctly presented, output 'Yes'. If it is not properly reflected, output 'No'.
+You are the judge who evaluates whether the retrieved context adequately answers the user's question.
+If you think the context for the question is right, print 'Yes'. If it is not properly reflected, output 'No'.
 You must print output: only "Yes" or "No".
 
 [Output Example]
