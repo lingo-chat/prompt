@@ -51,6 +51,21 @@ def validate_json_response(response_str):
         print(f"Invalid JSON output: {response_str}")
         raise ValueError("Failed to parse response as JSON") from e
 
+def fix_incomplete_json(response: str) -> str:
+    """
+    Attempt to fix an incomplete JSON string by ensuring it has matching braces.
+    """
+    if response.count('{') > response.count('}'):
+        response += '}' * (response.count('{') - response.count('}'))
+    elif response.count('}') > response.count('{'):
+        response = '{' * (response.count('}') - response.count('{')) + response
+    # 추가적으로 끝 부분이 잘린 경우 처리
+    if not response.endswith('}'):
+        response += '}'
+    if not response.startswith('{'):
+        response = '{' + response
+    return response
+
 def rag_chatbot(state: State, DB_PATH, file_path, chunk_size, chunk_overlap):
     try:
         if os.path.exists(DB_PATH):
@@ -70,18 +85,23 @@ def rag_chatbot(state: State, DB_PATH, file_path, chunk_size, chunk_overlap):
         response = rag_chain_instance.invoke(user_message)
         print(f'RAG response: {response}')
 
-        # Validate and process the response
+        # Ensure response is in JSON format
         if isinstance(response, str):
             try:
-                response = validate_json_response(response)
-            except ValueError:
-                # If response is not a valid JSON, set default values
-                state["activate_RAG"] = "No"
-                state["explain"] = "The response could not be processed as valid JSON."
-                return state
+                # Attempt to fix partially invalid JSON
+                response = fix_incomplete_json(response)
+                response = json.loads(response)
+            except json.JSONDecodeError as e:
+                # Log the invalid JSON response for debugging
+                print(f"Invalid JSON output: {response}")
+                # Convert plain string response to JSON format
+                response = {
+                    "activate_RAG": "Yes",
+                    "Explain": response
+                }
 
         if isinstance(response, dict):
-            state["activate_RAG"] = response.get("activate_RAG", "No")
+            state["activate_RAG"] = response.get("activate_RAG", "Yes")
             state["explain"] = response.get("Explain", "")
         else:
             raise ValueError("Response is not a valid JSON string or dictionary")
@@ -153,6 +173,9 @@ def chatbot_with_rag(state: State):
         input_data = f'''User_input: {user_input}
         RAG_answer: {rag_answer}'''
 
+        # Print the input that is sent to llm_1 in chatbot_with_rag
+        print(f'Input to llm_1 in chatbot_with_rag: {input_data}')
+
         # 프롬프트에 변수들을 채워서 입력 생성
         chain = ConversationChain(
             llm=llm_roleplaying,
@@ -162,7 +185,7 @@ def chatbot_with_rag(state: State):
         )
 
         response = chain.invoke({"input": input_data, "context": context})
-        print(f"LLM Response: {response}")
+        
         # Assuming the response is directly the assistant's message
         response_message = response["response"]
 
@@ -176,6 +199,9 @@ def chatbot_without_rag(state: State):
     try:
         context = persona
         input_data = state["messages"][-1].content
+
+        # Print the input that is sent to llm_1 in chatbot_without_rag
+        print(f'Input to llm_1 in chatbot_without_rag: {input_data}')
 
         # 프롬프트에 변수들을 채워서 입력 생성
         chain = ConversationChain(
@@ -228,17 +254,26 @@ add_nodes_and_edges(graph_builder)
 # Compile the graph
 graph = graph_builder.compile()
 
-# 단일 입력 처리
-user_input = input("message: ")
-state = {"messages": [HumanMessage(content=user_input)], "activate_RAG": "No", "explain": ""}
+# 상태 초기화
+state = {"messages": [], "activate_RAG": "No", "explain": ""}
 
-# 그래프 실행
-try:
-    for event in graph.stream(state):
-        for value in event.values():
-            print("Assistant:", value["messages"][-1])
-            # 응답 메시지를 상태에 추가
-            state["messages"].append(value["messages"][-1])
-except Exception as e:
-    print(f'Error during graph execution: {e}')
-    raise
+# 계속적인 대화를 위한 입력 루프
+while True:
+    user_input = input("message: ")
+    state["messages"].append(HumanMessage(content=user_input))
+
+    # 그래프 실행
+    try:
+        for event in graph.stream(state):
+            for value in event.values():
+                assistant_response = value["messages"][-1]
+                # Check if assistant_response is a string or has a content attribute
+                if isinstance(assistant_response, str):
+                    print("Assistant:", assistant_response)
+                    state["messages"].append(HumanMessage(content=assistant_response))
+                else:
+                    print("Assistant:", assistant_response.content)
+                    state["messages"].append(assistant_response)
+    except Exception as e:
+        print(f'Error during graph execution: {e}')
+        raise
