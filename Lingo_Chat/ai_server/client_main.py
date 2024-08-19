@@ -58,8 +58,9 @@ async def process_message(ws_server, event_name, namespace):
             
             # 1. 메세지 수신
             message = eval(message.decode('utf-8'))
-            user_id, user_message = message['chat_room_id'], message['user_message']
-            print(f"chat_room_id: {user_id}, message: {user_message}\n\n")
+            chat_room_id, user_message = message['chat_room_id'], message['user_message']
+            user_id = message['user_id']
+            print(f"chat_room_id: {chat_room_id}, message: {user_message}\n\n")
             
             # 2. 히스토리 조회 -> AIMessages, HumanMessages 로 변환이 필요
             async def _get_chat_history(user_id):
@@ -95,12 +96,20 @@ async def process_message(ws_server, event_name, namespace):
                         # print(chatbot_messages, end="", flush=True)
                         # ws_server.send(chatbot_messages)
                         await ws_server.emit(event_name, 
-                                             {'chat_room_id': user_id,
-                                              'response': chatbot_messages}, 
+                                             {'user_id': user_id,
+                                              'chat_room_id': chat_room_id,
+                                              'response': chatbot_messages,
+                                              'is_final': False}, 
                                              namespace=namespace)
                         final_response += chatbot_messages
                         
                     if resp['name'] == 'ChatOpenAI' and resp['data']['chunk'].response_metadata['finish_reason'].lower() == 'stop':
+                        await ws_server.emit(event_name, 
+                                             {'user_id': user_id,
+                                              'chat_room_id': chat_room_id,
+                                              'response': "",
+                                              'is_final': True}, 
+                                             namespace=namespace)
                         print(f"\n>> [Langgraph 생성 답변]: {final_response}\n\n")
                         print(f"\n>> [response handler] finished...\n\n")
                         
