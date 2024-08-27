@@ -23,7 +23,12 @@ persona_llms = {'rag_llm': rag_llm,
 
 ### graph setting
 class State(TypedDict):
+    """
+        messages: chatbot chain 로그 적재
+        history: 이전 대화 기록
+    """
     messages: Annotated[list[AnyMessage], add_messages]
+    history: Annotated[list[AnyMessage], add_messages]
 
 
 def chatbot_search(state: State, config: RunnableConfig):
@@ -77,7 +82,7 @@ async def chatbot_chat(state: State, config: RunnableConfig):
             '''
         현 상태: string content 는 사용되고 있지 않다.
     """
-    result = []
+    result = state['history']     # 대화 히스토리를 사용하여 최종 답변 생성
     if_searched = False
     searched_contents = ""
     
@@ -166,7 +171,7 @@ def init_graph():
         vllm(ChatOpenAI)와 langgraph를 연동하여 graph를 만들기 위한 initialization 코드입니다.
     """
     # 대화 내용 기억을 위한 메모리설정
-    memory = AsyncSqliteSaver.from_conn_string(":memory:")
+    # memory = AsyncSqliteSaver.from_conn_string(":memory:")
 
     # Langgraph 설정
     tool_node = BasicToolNode(tools=tools)
@@ -186,7 +191,8 @@ def init_graph():
     graph_builder.add_edge("chatbot chat", END)
     # new version
     
-    graph = graph_builder.compile(checkpointer=memory)    
+    # graph = graph_builder.compile(checkpointer=memory)    
+    graph = graph_builder.compile()
     config = {"configurable": {"thread_id": "0"}}   # 이 thread 가 없다면 애초에 state 에 예전 기록이 남질 않는다.
     
     print(f"\n\n>> Graph initialized successfully.\n\n")
