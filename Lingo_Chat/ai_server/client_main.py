@@ -98,8 +98,9 @@ async def process_message(ws_server, event_name, namespace):
             
             
             response_texts = [
-                {'data': {'chunk': '이것은 테스트 답변입니다(1).\n\n'}, 'name': 'ChatOpenAI'},
+                {'data': {'chunk': '이것은 테스트 답변입니다(1).'}, 'name': 'ChatOpenAI'},
                 {'data': {'chunk': '이것은 테스트 답변입니다(2).\n\n'}, 'name': 'ChatOpenAI'},
+                {'data': {'chunk': 'stop.\n\n'}, 'name': 'ChatOpenAI'},
                 # {'data': {'chunk': '이것은 테스트 답변입니다(3).'}, 'name': 'ChatOpenAI'},
                 # {'data': {'chunk': '이것은 테스트 답변입니다(4).'}, 'name': 'ChatOpenAI'},
             ]
@@ -123,7 +124,8 @@ async def process_message(ws_server, event_name, namespace):
                                              namespace=namespace)
                         final_response += chatbot_messages
                         
-                    if resp['name'] == 'ChatOpenAI' and resp['data']['chunk'].response_metadata['finish_reason'].lower() == 'stop':
+                    # if resp['name'] == 'ChatOpenAI' and resp['data']['chunk'].response_metadata['finish_reason'].lower() == 'stop':
+                    if resp['name'] == 'ChatOpenAI' and resp['data']['chunk'] == 'stop.\n\n':
                         await ws_server.emit(event_name, 
                                              {'user_id': user_id,
                                               'chat_room_id': chat_room_id,
