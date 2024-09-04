@@ -15,7 +15,8 @@ import asyncio
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, AIMessage
-from graph import chat_graph, config
+from datetime import datetime
+# from graph import chat_graph, config
 
 ##########
 ### dotenv setting
@@ -86,11 +87,30 @@ async def process_message(ws_server, event_name, namespace):
             print(f"\n\n>> chat_history: {chat_history}\n\n")
 
             # 4. chatbot 호출
-            response = chat_graph.astream_events({"history": chat_history, "messages": user_message}, config=config, version='v1')    # return: async_generator
+            # response = chat_graph.astream_events({"history": chat_history, "messages": user_message}, config=config, version='v1')    # return: async_generator
+            ### test code start
+            # 테스트용 async generator 정의
+            async def async_response_generator(response_text):
+                for line in response_text:
+                    await asyncio.sleep(1)  # 네트워크 지연 또는 처리 시간 시뮬레이션
+                    yield line
+            ### test code end
+            
+            
+            response_texts = [
+                {'data': {'chunk': '이것은 테스트 답변입니다(1).\n\n'}, 'name': 'ChatOpenAI'},
+                {'data': {'chunk': '이것은 테스트 답변입니다(2).\n\n'}, 'name': 'ChatOpenAI'},
+                # {'data': {'chunk': '이것은 테스트 답변입니다(3).'}, 'name': 'ChatOpenAI'},
+                # {'data': {'chunk': '이것은 테스트 답변입니다(4).'}, 'name': 'ChatOpenAI'},
+            ]
+            response = async_response_generator(response_texts)
+            
             final_response = ""
             async for resp in response:
                 try:
-                    chatbot_messages = resp['data']['chunk'].content
+                    # test
+                    # chatbot_messages = resp['data']['chunk'].content
+                    chatbot_messages = resp['data']['chunk']
                     if chatbot_messages and resp['name'] == 'ChatOpenAI':
                         # for i in chatbot_messages:
                         # print(chatbot_messages, end="", flush=True)
@@ -117,11 +137,14 @@ async def process_message(ws_server, event_name, namespace):
                     pass
             
             # 5. redis history 저장
+            current_time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
             save_messages = [
-                str({'role': 'user', 'content': user_message}),
-                str({'role': 'assistant', 'content': final_response})
+                str({'role': 'user', 'content': user_message, 'user_id': user_id, 'chat_room_id': chat_room_id}),
+                str({'role': 'assistant', 'content': final_response, 'user_id': user_id, 'chat_room_id': chat_room_id, 'created_time': current_time}),
             ]
             await r.rpush(user_id, *save_messages)
+            
+            # 6. 마지막 데이터만 따로 캐싱
         
         except Exception as e:
             print(f"\n>> error: {e}\n\n\n")

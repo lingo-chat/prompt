@@ -8,11 +8,6 @@ import multiprocessing
 
 from pyngrok import ngrok
 from server.utils import signal_handler, argparse_load_from_yaml
-<<<<<<< HEAD
-from ws import start_websockets
-=======
-
->>>>>>> origin
 
 def run_server():
     """
@@ -39,19 +34,12 @@ def run_server():
     server_process = subprocess.Popen(server_command)
     
     # ngrok 터널 생성
-<<<<<<< HEAD
-    wait_time = 10
-=======
     wait_time = 15
->>>>>>> origin
     print(f"\n\n>>>>>>> [ngrok] Wait for about {wait_time} seconds for vllm server fully init !!!\n\n")
     time.sleep(wait_time)
     
     # 웹소켓 서버 실행
-<<<<<<< HEAD
-=======
     from ws import start_websockets # error: mkl-service + Intel(R) MKL: MKL_THREADING_LAYER=INTEL is incompatible with libgomp-a34b3233.so.1 library.
->>>>>>> origin
     ws_server = multiprocessing.Process(target=start_websockets, args=(int(aiserver_config.ws_port),))
     # ws_thread = threading.Thread(target=start_websockets, args=(int(aiserver_config.ws_port),))
     ws_server.start()
