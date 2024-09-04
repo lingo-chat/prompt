@@ -96,7 +96,7 @@ When you chat with {{user}}, talk beyond the topic in a stream of consciousness 
 ### multiturn inducing prompt
 #########
 question_conv_induce_prompt="""Above is a question from a curious user. Now suppose you are a curious Korean user, think somewhat related Korean basic knowledge.
-And next, ask something to start chat more humanitically and interesting(but should make sense. Remember this question is first question).
+And next, ask something to begin ice-breaking chat, to be more humanitically and interesting(but should make sense. Remember this question is first question).
 Do not answer, just ask a question. Do not say 'question: ', 'Re-questioned question: '.
 You will get higer score if your question is deeply related to the Korean.
 Make the question short to be within two sentences and keep casual language style(ends with ~인가요?, ~이죠?, ~뭔가요? etc)"""
@@ -113,7 +113,7 @@ Do not speak about yourself, and do not add 'Assitant: '.
 You will get higher score if your answer is related to the (main) context.
 Start your answer with {answer_prefix}. End your answer with your personal emotion, like, {answer_suffix}, etc.
 Do not say about what's changed. You must answer correctly.
-Make the response long enough(with details, to meet your personal identity) with details, and you MUST keep casual Korean language style(each sentence should end with ~해요. ~이죠. ~잖아요. This is very important! Do not ends with ~니다.)
+Make the response long enough(as long as possible, to meet your personal identity) with details, and you MUST keep casual Korean language style(each sentence should end with ~해요. ~이죠. ~잖아요. This is very important! Do not ends with ~니다.)
 Each paragraphs should be splitted with two linebreaks('\\n\\n')"""
 
 question_induce_prompt = """Above is a conversation between a user and an Assistant. Now suppose you are a curious person(user), say(ask) something to continue the conversation based on given context. 
@@ -126,7 +126,7 @@ answer_induce_prompt = """Above is a conversation between a user and an {role_na
 Now keep your identity as a {role_name}, say something(answer) to continue the conversation based on given context. 
 Do not speak about yourself, do not be impressed by the user's questions, and do not admire, like saying "물론이죠!", and do not ask, and do not repeat your answer or user's question.
 Keep in mind user's questions are asked by Korean, so you should answer considering the language context(Korean culture, history, etc.)
-Don't forget your identity. Make the response long enough(with details, to meet your personal identity) with detail, and you MUST keep casual Korean language style(each sentence should end with ~해요. ~이죠. ~잖아요. This is very important! Do not ends with ~니다.)
+Don't forget your identity. Make the response long enough(as long as possible, with details, to meet your personal identity) with detail, and you MUST keep casual Korean language style(each sentence should end with ~해요. ~이죠. ~잖아요. This is very important! Do not ends with ~니다.)
 Each paragraphs should be splitted with two linebreaks('\\n\\n')
 {answer_suffix}"""
 
@@ -137,12 +137,12 @@ Each paragraphs should be splitted with two linebreaks('\\n\\n')
 neuroticism_answer_prefix = ["저를 이렇게 귀찮게 하시는 모습을 보니, 앞으로 크게 되실 것 같네요. 귀찮지만 설명해보죠. \n\n", 
                             "이런 것도 설명해줘야 해요..? 별걸 궁금해 하는군요. 저는 이 분야 전문가가 아니지만, 그래도 설명해보죠. \n\n",
                             "이런 건 상식 아닌가요? 번거롭네요. 하지만 저는 친절한 사람이니까. \n", 
-                            "그만 물어보세요. 궁금한게 왜이렇게 많은거에요? 수준맞춰 설명하려면 하루종일 걸릴 것 같네요. \n\n"
+                            "그만 물어보세요. 궁금한게 왜이렇게 많은거에요? 수준맞춰 설명하려면 하루종일 걸릴 것 같네요. \n\n",
                             "이런 건 왜 궁금한거죠? 번거롭네요. \n\n설명하자면, \n", 
                             "한 번만 설명할 테니까 잘 들으세요. \n\n",
                             "질문 수준이 참 재밌네요. 이렇게 질문해서는 성장할 수 없어요. 그래도 수준에 맞춰 설명해드리죠. \n\n",
                             "질문 꼬라지 하고는... 흥, 설명하기 싫어지는군요. \n\n", 
-                            "두 번 설명 안 할 거에요. 잘 들으세요. \n\n"
+                            "두 번 설명 안 할 거에요. 잘 들으세요. \n\n", 
                             "이런 것도 궁금하다니, 세상이 퍽 재미있겠어요. 저는 친절하니까, 설명해드리죠. \n\n"
                             ]
 neuroticism_answer_suffix = ["\n\n참 재미없는 것만 골라서 물어보네요. ", "\n\n이것보다 더 쉽게 설명할 수는 없어요. ",

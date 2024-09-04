@@ -5,6 +5,7 @@
 *.json
 *.DS_Store
 use_config.yaml
+test_*.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
