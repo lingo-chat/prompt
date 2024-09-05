@@ -1,5 +1,6 @@
 import os
 import redis
+import requests
 
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
@@ -16,6 +17,9 @@ redis_ms_id = os.getenv('REDIS_MS_ID')
 
 # Redis 및 PostgreSQL 연결 설정
 r = redis.Redis(host=redis_url, port=redis_port, db=1)
+
+# test
+url = "http://0.0.0.0:/9542"
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -53,14 +57,19 @@ def backup_chat_rooms():
                 _chat_history = r.lrange(rq_name, 0, -1)
                 _chat_history = [eval(i.decode('utf-8')) for i in _chat_history]
                 
-                _chat_history_data = schemas.chat_history_backup(
-                    chat_room_id=int(_chat_history[0]['chat_room_id']),
-                    user_id=str(_chat_history[0]['user_id']),
-                    chat_history=str(_chat_history)
-                )
-                
-                if backup(_chat_history_data):
-                    r.delete(rq_name)
+                _chat_history_data = {
+                    "chat_room_id":int(_chat_history[0]['chat_room_id']),
+                    "user_id":str(_chat_history[0]['user_id']),
+                    "chat_history":str(_chat_history)
+                }
+                response = requests.post(url, json=_chat_history_data)
+                if response.status_code == 200:
+                    print(f"Output saved successfully, time: {response}")
+                else:
+                    print("Failed to save output", response)
+                    
+                # if backup(_chat_history_data):
+                #     r.delete(rq_name)
                 
         except Exception as e:
             print(f">> Error in whole backup sequence: {e}\n\n")
