@@ -42,4 +42,4 @@ async def save_output(chat_history: schemas.chat_history_backup):
 
 # if __name__ == "__main__":
 #     # this file should be run in another terminal
-#     # ex) uvicorn main:app --reload --port 9542 (포트포워딩 불필요)
+#     # ex) uvicorn main:app --reload --host 0.0.0.0 --port 9542 (포트포워딩 불필요)
