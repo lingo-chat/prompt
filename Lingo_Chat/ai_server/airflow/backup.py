@@ -6,9 +6,6 @@ import requests
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
-from app import models, schemas, crud
-from app.database import SessionLocal, engine
-
 
 load_dotenv(override=True)
 seoul_tz = pytz.timezone('Asia/Seoul')
@@ -17,25 +14,10 @@ redis_url = os.getenv('VM_URL')
 redis_port = os.getenv('REDIS_PORT')
 redis_ms_id = os.getenv('REDIS_MS_ID')
 db_port = os.getenv('DB_PORT')
-db_backup_namespace = os.getenv('DB_BACKUP_NAMESPACE')
 
-# Redis 및 PostgreSQL 연결 설정
+# Redis 및 SQLite 연결 설정
 r = redis.Redis(host=redis_url, port=redis_port, db=1)
-
-# test
-url = "http://"+redis_url+":"+db_port+db_backup_namespace
-
-models.Base.metadata.create_all(bind=engine)
-
-
-def backup(chat_history: schemas.chat_history_backup):
-    db = SessionLocal()
-    try:
-        crud.backup_chat_history(db, chat_history)
-        return True
-    except Exception as e:
-        print(f">> Error in crud backup: {e}\n\n")
-        return False
+url = "http://"+redis_url+":"+db_port+'/backup'
 
 
 def backup_chat_rooms():

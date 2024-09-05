@@ -4,6 +4,7 @@
 *.arrow
 *.json
 *.DS_Store
+*.db
 use_config.yaml
 
 # Byte-compiled / optimized / DLL files

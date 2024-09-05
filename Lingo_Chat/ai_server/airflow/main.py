@@ -38,7 +38,24 @@ async def save_output(chat_history: schemas.chat_history_backup):
     except Exception as e:
         print(f">> Error in crud backup: {e}\n\n")
         return False
+    
+    
+@app.get("/reload")
+async def reload_history(chat_room_id: int):
+    db = SessionLocal()
+    try:
+        history = crud.reload_chat_history(db, chat_room_id)
+        db.close()
         
+        if len(history) == 0:
+            return None
+        crud.delete_chat_history(db, chat_room_id)
+        return history
+    
+    except Exception as e:
+        print(f">> Error in crud reload: {e}\n\n")
+        return False
+
 
 # if __name__ == "__main__":
 #     # this file should be run in another terminal
