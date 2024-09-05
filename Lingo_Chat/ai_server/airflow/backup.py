@@ -1,5 +1,6 @@
 import os
 import pytz
+import time
 import redis
 import requests
 
@@ -70,4 +71,6 @@ def run_backup():
 
     
 if __name__ == "__main__":
-    backup_chat_rooms()
+    while(True):
+        time.sleep(10)
+        backup_chat_rooms()
