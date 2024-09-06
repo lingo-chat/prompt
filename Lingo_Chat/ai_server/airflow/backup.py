@@ -26,9 +26,11 @@ def backup_chat_rooms():
     redis_queues = [i.decode('utf-8') for i in r.keys('*')]
     if 'user_ms_queue' in redis_queues:
         redis_queues.remove('user_ms_queue')
-        
-    print(f"\n\n>> Now saved chat rooms: {redis_queues}\n\n")
+    
     now = datetime.strptime(datetime.now(seoul_tz).strftime('%Y-%m-%d-%H-%M-%S'), '%Y-%m-%d-%H-%M-%S')
+    os.system('clear')
+    print(f">> Redis chats will be backuped after 1 minute of inactivity.\n\n")
+    print(f">> Now saved chat rooms: {redis_queues}\n>> Last checked at: {now}\n\n")
     
     for rq_name in redis_queues:
         _last_chat = r.lrange(rq_name, -2, -1)
@@ -39,8 +41,8 @@ def backup_chat_rooms():
             print(f">> Chat room {{ {rq_name} }} : {now-last_created_time}")
             
             # 1분 이상 차이나는지 확인
-            if (now - last_created_time) > timedelta(seconds=30):
-                print(f">> Chat room {{ {rq_name} }} is now backuped!\n\n")
+            if (now - last_created_time) > timedelta(seconds=60):
+                print(f">> Chat room {{ {rq_name} }} is now backuped!")
                 
                 _chat_history = r.lrange(rq_name, 0, -1)
                 _chat_history = [eval(i.decode('utf-8')) for i in _chat_history]

@@ -14,8 +14,8 @@ def _model_download(
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16)
     try:
-        model.save_pretrained(save_path)
-        tokenizer.save_pretrained(save_path)
+        # model.save_pretrained(save_path)
+        # tokenizer.save_pretrained(save_path)
 
         print(f"Model Downloaded Successfully!!!\n\n")
     except Exception as E:

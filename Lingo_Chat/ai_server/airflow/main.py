@@ -28,12 +28,13 @@ def get(request: Request):
     return {"HELLO": "HELLO"}
 
 
-@app.post("/backup/")
+@app.post("/backup")
 async def save_output(chat_history: schemas.chat_history_backup):
     db = SessionLocal()
     try:
         crud.backup_chat_history(db, chat_history)
         db.close()
+        print(">> Chat history backuped successfully!")
         return True
     except Exception as e:
         print(f">> Error in crud backup: {e}\n\n")
@@ -49,7 +50,8 @@ async def reload_history(chat_room_id: int):
         
         if len(history) == 0:
             return None
-        crud.delete_chat_history(db, chat_room_id)
+        if crud.delete_chat_history(db, chat_room_id):
+            print(">> Chat history found! Deleted chat history successfully!")
         return history
     
     except Exception as e:

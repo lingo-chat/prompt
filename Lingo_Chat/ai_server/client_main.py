@@ -95,12 +95,16 @@ async def process_message(ws_server, event_name, namespace):
             chat_history = await _get_chat_history(chat_room_id)
             
             if len(chat_history) == 0:      # db 조회 시퀀스 추가 feat-#22
-                db_chat_history = requests.get(db_reload_url, params={'chat_room_id': chat_room_id}).json()
+                db_chat_history = requests.get(db_reload_url, params={'chat_room_id': int(chat_room_id)}).json()
                 
                 if db_chat_history is not None:
-                    db_chat_history = [str(chat) for chat in eval(db_chat_history[0]['chat_history'])]
-                    # for chat in db_chat_history:
-                    await r.rpush(chat_room_id, *db_chat_history)
+                    result = []
+                    for idx, chat in enumerate(eval(db_chat_history[0]['chat_history'])):
+                        if idx == len(eval(db_chat_history[0]['chat_history']))-1:
+                            chat['created_time'] = datetime.now(seoul_tz).strftime('%Y-%m-%d-%H-%M-%S')
+                        result.append(str(chat))
+                    # db_chat_history = [chat for chat in eval(db_chat_history[0]['chat_history'])]
+                    await r.rpush(chat_room_id, *result)
                     chat_history = await _get_chat_history(chat_room_id)
                     
             print(f"\n\n>> chat_history: {chat_history}\n\n")
@@ -132,7 +136,8 @@ async def process_message(ws_server, event_name, namespace):
                         print(f"\n>> [Langgraph 생성 답변]: {final_response}\n\n")
                         print(f"\n>> [response handler] finished...\n\n")
                         
-                except:
+                except Exception as e:
+                    # print(f">> error: {e}")
                     pass
             
             # 5. redis history 저장

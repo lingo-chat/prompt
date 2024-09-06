@@ -42,10 +42,9 @@ basic_llm = ChatOpenAI(
     api_key="test_api_key",
     streaming=True,
     stop=['<|im_end|>', '<|endoftext|>', '<|im_start|>', '</s>'],
-    model_kwargs={'top_p': 0.95, 
-                  'frequency_penalty': 1.4,
-                  'seed': 42,
-                  }
+    top_p=0.95, 
+    frequency_penalty=1.4,
+    seed=42,
 )
 
 gemini_llm = ChatGoogleGenerativeAI(
