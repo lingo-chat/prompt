@@ -14,8 +14,6 @@ def backup_chat_history(db: Session, chat_history: schemas.chat_history_backup):
         user_id=chat_history.user_id,
         chat_history=chat_history.chat_history
     )
-    
-        
     db.add(chat_history)
     db.commit()
     db.refresh(chat_history)
@@ -35,4 +33,5 @@ def delete_chat_history(db: Session, chat_room_id: int):
     """
     db.query(models.ChatHistoryBackup).filter(models.ChatHistoryBackup.chat_room_id == chat_room_id).delete()
     db.commit()
+    db.flush()
     return True
