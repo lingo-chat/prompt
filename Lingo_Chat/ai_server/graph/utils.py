@@ -14,7 +14,10 @@ from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage
 
 from langchain_community.tools.tavily_search import TavilySearchResults
+# test
 
+import sys
+sys.path.append("../")
 from server.utils import argparse_load_from_yaml
 from configs import (default_system_prompt,
                      orbit_role_name, orbit_role_description
@@ -25,7 +28,7 @@ load_dotenv()
 ##########
 ### tokenizer setting
 ##########
-config_path = 'configs/default_config.yaml'
+config_path = '../configs/default_config.yaml'
 aiserver_config = argparse_load_from_yaml(config_path)
 
 model_path = str(aiserver_config.llm_model_path)
@@ -148,3 +151,61 @@ def fix_called_tool_name(called_tool_name: str) -> str:
     # 2. 가장 높은 ratio를 가진 idx 선택
     called_tool_name = tool_name_list[_max_idx]
     return called_tool_name
+
+
+async def _inference(config, input_text):
+    
+    # return await run_in_executor(config, Runnable.invoke, input_text, config)
+    response = local_llm.astream(input_text, config)
+    async for res in response:
+        try:
+            print(res.content)
+        except:
+            ...
+    
+async def run(config, input_text):
+    # asyncio.run(_inference(config, input_text))
+    asyncio.create_task(_inference(config, input_text))
+    # await asio.wait()
+
+def main2(config, input_text):
+    asyncio.run(_inference(config, input_text))
+
+def main(config, input_text):
+    asyncio.get_event_loop().run_until_complete(run(config, input_text))
+
+async def test_abatch():
+    messages = [
+            [{'role': 'user', 'content': '여름은 왜 더운거죠?'}], 
+            [{'role': 'user', 'content': '저는 외국인입니다. 한국어 너무 어려워요. 한글에 숨겨진 과학이 뭐죠?'}]
+            ]
+    config = {"configurable": {"thread_id": "0"}}   # 이 thread 가 없다면 애초에 state 에 예전 기록이 남질 않는다.
+    result = [{'messages': [tokenizer.apply_chat_template(messages[0], tokenize=False, add_generation_prompt=True)]},
+              {'messages': [tokenizer.apply_chat_template(messages[1], tokenize=False, add_generation_prompt=True)]}]
+    # breakpoint()
+    # response = await _inference(config, result[0])
+    # response = local_llm.ainvoke(result, config)
+    
+    p1 = multiprocessing.Process(target=main2, args=(config, result[0]))
+    p2 = multiprocessing.Process(target=main2, args=(config, result[1]))
+    # ws_thread = threading.Thread(target=start_websockets, args=(int(aiserver_config.ws_port),))
+    p1.start()
+    p2.start()
+    
+    p1.join()
+    p2.join()
+    
+    
+    # async for res in response:
+    #     print(res)
+            
+    breakpoint()
+
+
+if __name__ == '__main__':
+    import asyncio
+    from langchain_core.runnables.config import run_in_executor
+    from langchain_core.runnables.base import Runnable
+    import multiprocessing
+    
+    asyncio.run(test_abatch())
