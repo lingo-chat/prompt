@@ -19,7 +19,7 @@ from concurrent.futures import ProcessPoolExecutor
 from client.utils import get_chat_history, save_chat_history, emit_chat_message, call_chat_graph
 from client.utils import (asio, connection_test_message,
                           websocket_namespace, websocket_url,
-                          redis_url, redis_port, redis_ms_id,)
+                          redis_url, redis_port, redis_ms_id, lock)
 
 
 ##########
@@ -35,6 +35,11 @@ async def process_message():
     """
         메인 프로세스 함수
     """
+    lock.acquire()
+    await asio.connect(websocket_url, namespaces=[websocket_namespace])
+    await asio.sleep(seconds=1)
+    lock.release()
+    
     # redis 연결
     redis_client = redis.Redis(host=redis_url, port=redis_port, db=1)
     
@@ -55,16 +60,19 @@ async def process_message():
                 print(f"\n\n>> chat_history: {chat_history}\n\n")
                 
                 # 4. chatbot 호출
-                response = await call_chat_graph(chat_history, user_message)
+                response = await call_chat_graph(chat_history, user_message, chat_room_id, user_id)
                 
-                # 5. redis history 저장
+                # 5. redis history 저장 w/ 웹소켓 메세지 전송
                 await save_chat_history(redis_client, chat_room_id, user_id, user_message, response)
                 
                 # 6. 웹소켓으로 메세지 전송
-                await emit_chat_message(chat_room_id, user_id, response, True)
+                # await emit_chat_message(chat_room_id, user_id, response, True) # 이렇게 보낼 경우 백엔드파트에서 데이터 중복됨.
+                await emit_chat_message(chat_room_id, user_id, "", True)
+                
 
         except Exception as e:
             print(f"\n>> error: {e}\n")
+            return Exception
         
     
 def start_process_message():
@@ -74,15 +82,15 @@ def start_process_message():
 async def main():
     try:
         # socket io 연결
-        await asio.connect(websocket_url, namespaces=[websocket_namespace])
-        await asio.sleep(seconds=1)
+        # await asio.connect(websocket_url, namespaces=[websocket_namespace])
+        # await asio.sleep(seconds=1)
         
         with ProcessPoolExecutor() as executor:
             loop = asyncio.get_running_loop()
             
             # 메인 추론 함수 비동기 실행
             # refer: https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor
-            tasks = [loop.run_in_executor(executor, start_process_message) for _ in range(6)]
+            tasks = [loop.run_in_executor(executor, start_process_message) for _ in range(3)]
             
             await asio.wait()
             

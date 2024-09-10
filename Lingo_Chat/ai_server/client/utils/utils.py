@@ -132,7 +132,9 @@ async def emit_chat_message(chat_room_id: int,
 
 
 async def call_chat_graph(chat_history: List,
-                          user_message: str) -> str:
+                          user_message: str,
+                          chat_room_id: int,
+                          user_id: str) -> str:
     """
         chat_graph를 호출하여 chatbot의 답변을 받아옵니다.
         Refer to: Lingo_Chat/ai_server/graph/graph.py
@@ -145,6 +147,9 @@ async def call_chat_graph(chat_history: List,
             chatbot_messages = resp['data']['chunk'].content
             if chatbot_messages and resp['name'] == 'ChatOpenAI':
                 # print(f"{chatbot_messages}", end='')
+                
+                await emit_chat_message(chat_room_id, user_id, chatbot_messages, False)
+                
                 final_response += chatbot_messages
                 
             if resp['name'] == 'ChatOpenAI' and resp['data']['chunk'].response_metadata['finish_reason'].lower() == 'stop':
