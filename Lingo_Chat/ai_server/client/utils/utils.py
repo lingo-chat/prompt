@@ -33,7 +33,7 @@ websocket_event = os.getenv('API_WS_EVENTNAME')
 connection_test_message = "ai 서버에서 보내는 연결 테스트 메세지 입니다."
 
 seoul_tz = pytz.timezone('Asia/Seoul')
-asio = socketio.AsyncClient(logger=False, engineio_logger=False)
+asio = socketio.AsyncClient(logger=True, engineio_logger=True)
 
 lock = multiprocessing.Lock()
 
@@ -107,8 +107,8 @@ async def save_chat_history(redis_client,
     """
     current_time = datetime.now(seoul_tz).strftime('%Y-%m-%d-%H-%M-%S')
     save_messages = [
-        str({'role': 'user', 'content': user_message, 'user_id': user_id, 'chat_room_id': chat_room_id}),
-        str({'role': 'assistant', 'content': final_response, 'user_id': user_id, 'chat_room_id': chat_room_id, 'created_time': current_time}),
+        str({"role": "user", "content": user_message, "user_id": user_id, "chat_room_id": chat_room_id}),
+        str({"role": "assistant", "content": final_response, "user_id": user_id, "chat_room_id": chat_room_id, "created_time": current_time}),
     ]
     await redis_client.rpush(chat_room_id, *save_messages)
     

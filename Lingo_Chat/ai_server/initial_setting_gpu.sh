@@ -42,13 +42,13 @@ echo -e  "4. etc packages installation done.\n\n"
 ngrok config add-authtoken <your_token>
 huggingface-cli login --token <your_token>
 
-# git clone
-git clone https://github.com/LewisVille-flow/lingo-chat-prompt.git
-cd lingo-chat-prompt
+# # git clone
+# git clone https://github.com/LewisVille-flow/lingo-chat-prompt.git
+# cd lingo-chat-prompt
 # git checkout -t origin/feat-#22
 
 # model download
-cd Lingo_Chat/ai_server/model
+cd Lingo_Chat/ai_server/models
 mkdir -p ./PAL_orbit_v0.2.2.3
 python download.py
 
