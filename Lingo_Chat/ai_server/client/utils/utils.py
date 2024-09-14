@@ -24,7 +24,8 @@ db_port = os.getenv('DB_PORT')
 
 # Redis 및 SQLite 연결 설정
 # redis_client = redis.Redis(host=redis_url, port=redis_port, db=1)
-db_reload_url = "http://"+redis_url+":"+db_port+'/reload'
+# db_reload_url = "http://"+redis_url+":"+db_port+'/reload'
+db_reload_url = f"http://"+redis_url+"/chats/db/ai/{chat_room_id}"
 
 websocket_url = "http://"+os.getenv('VM_URL')+":"+os.getenv('API_PORT')
 websocket_namespace = os.getenv('API_WS_NAMESPACE')
@@ -40,7 +41,74 @@ lock = multiprocessing.Lock()
 ##########
 ### utility function setting
 ##########
-async def get_chat_history(redis_client, 
+def _convert_format_to_Message(_chat_history: List) -> List:
+    """
+        chat_history 포맷을 Message로 변환합니다.
+    """
+    chat_history = []
+    for data in _chat_history:
+        _data = eval(data.decode('utf-8'))
+        if _data.get('role') == 'user':
+            _data = HumanMessage(content=_data["content"])
+        elif _data.get('role') == 'assistant':
+            _data = AIMessage(content=_data["content"])
+        chat_history.append(_data)
+    
+    # chat_history = [eval(data.decode('utf-8')) for data in _chat_history]    
+    return chat_history
+
+
+async def _get_chat_history_redis(redis_client,
+                                  chat_room_id: int) -> List:
+    _chat_history = await redis_client.lrange(chat_room_id, 0, -1)
+    chat_history = _convert_format_to_Message(_chat_history)
+    return chat_history
+
+
+async def _get_chat_history_db(redis_client,
+                               user_id: str,
+                               chat_room_id: int) -> List[dict]:
+    """
+        db로부터 채팅 히스토리를 가져옵니다.
+    """
+    result = []
+    db_chat_history = requests.get(db_reload_url.format(chat_room_id=chat_room_id))
+    
+    if not db_chat_history.status_code == 200 or db_chat_history.json() is None:
+        return result
+    
+    # 편의상 여기서 user_id 를 추가합니다.
+    db_chat_history = fill_user_id(db_chat_history, user_id)
+    
+    # 마지막 메세지에 시간 초기화
+    for idx, chat in enumerate(eval(db_chat_history[0]["chat_history"])):
+        if idx == len(eval(db_chat_history[0]["chat_history"]))-1:
+            chat["created_time"] = datetime.now(seoul_tz).strftime('%Y-%m-%d %H:%M:%S')
+        result.append(str(chat))
+    # db_chat_history = [chat for chat in eval(db_chat_history[0]['chat_history'])]
+    
+    await redis_client.rpush(chat_room_id, *result)
+    # chat_history = await get_chat_history(redis_client, chat_room_id)
+    # chat_history = _convert_format_to_Message(eval(db_chat_history[0]['chat_history']))
+    chat_history = await _get_chat_history_redis(redis_client, chat_room_id)
+    
+    return chat_history
+
+
+def fill_user_id(chat_history: List[dict], user_id: str) -> List[dict]:
+    """
+        chat_history에 user_id를 추가합니다.
+    """
+    if chat_history[0].get('user_id') is not None:
+        return chat_history
+    
+    for chat in chat_history:
+        chat['user_id'] = user_id
+    return chat_history
+
+
+async def get_chat_history(redis_client,
+                           user_id: str, 
                            chat_room_id: int) -> List:
     """
         redis로부터 채팅 히스토리를 가져와 포맷을 변경하여 반환합니다.
@@ -49,50 +117,12 @@ async def get_chat_history(redis_client,
         request로부터 받은 데이터: db_chat_history == [{'chat_room_id': int, 'user_id': str, 'chat_history': str}]
         리턴 형태: chat_history == [HumanMessage(), AIMessage()...]
     """
-    
-    def _convert_format_to_Message(_chat_history: List) -> List:
-        """
-            chat_history 포맷을 Message로 변환합니다.
-        """
-        chat_history = []
-        for data in _chat_history:
-            _data = eval(data.decode('utf-8'))
-            if _data.get('role') == 'user':
-                _data = HumanMessage(content=_data["content"])
-            elif _data.get('role') == 'assistant':
-                _data = AIMessage(content=_data["content"])
-            chat_history.append(_data)
-        
-        # chat_history = [eval(data.decode('utf-8')) for data in _chat_history]    
-        return chat_history
-    
-    async def _get_chat_history(redis_client, 
-                                chat_room_id: int) -> List:
-        _chat_history = await redis_client.lrange(chat_room_id, 0, -1)
-        chat_history = _convert_format_to_Message(_chat_history)
-        return chat_history
-    
     # 레디스로부터 채팅 히스토리 조회
-    chat_history = await _get_chat_history(redis_client, chat_room_id)
+    chat_history = await _get_chat_history_redis(redis_client, chat_room_id)
     
     # db 조회 시퀀스 추가 feat-#22
     if len(chat_history) == 0:
-        db_chat_history = requests.get(db_reload_url, params={"chat_room_id": int(chat_room_id)}).json()
-        
-        if db_chat_history is not None:
-            result = []
-            
-            # 마지막 메세지에 시간 초기화
-            for idx, chat in enumerate(eval(db_chat_history[0]["chat_history"])):
-                if idx == len(eval(db_chat_history[0]["chat_history"]))-1:
-                    chat["created_time"] = datetime.now(seoul_tz).strftime('%Y-%m-%d %H:%M:%S')
-                result.append(str(chat))
-            # db_chat_history = [chat for chat in eval(db_chat_history[0]['chat_history'])]
-            
-            await redis_client.rpush(chat_room_id, *result)
-            # chat_history = await get_chat_history(redis_client, chat_room_id)
-            # chat_history = _convert_format_to_Message(eval(db_chat_history[0]['chat_history']))
-            chat_history = await _get_chat_history(redis_client, chat_room_id)
+        chat_history = await _get_chat_history_db(redis_client, user_id, chat_room_id)
             
     return chat_history
 

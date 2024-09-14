@@ -20,8 +20,8 @@ db_port = os.getenv('DB_PORT')
 
 # Redis 및 SQLite 연결 설정
 r = redis.Redis(host=redis_url, port=redis_port, db=1)
-get_last_created_time_url = "http://"+redis_url+":"+db_port+'/get_last_created_time'
-backup_url = "http://"+redis_url+":"+db_port+'/backup'
+get_last_created_time_url = f"http://"+redis_url+":"+db_port+'/chats/db/{chat_room_id}/created-time'
+backup_url = "http://"+redis_url+":"+db_port+'/chats/db'
 
 
 def filter_current_chat_history(chat_history: List[dict],
@@ -52,18 +52,15 @@ def request_backup(chat_history: List[dict]) -> bool:
             bool - 백업 성공 여부
     """
     # 1. 해당 채팅방의 chat_room_id 및 user_id를 담고있는 Json을 전송
-    user_info_data = {
-        "chat_room_id": int(chat_history[0]['chat_room_id']),
-        "user_id": str(chat_history[0]['user_id'])
-    }
-    response = requests.get(get_last_created_time_url, params=user_info_data)
+    _chat_room_id = int(chat_history[0]['chat_room_id'])
+    response = requests.get(get_last_created_time_url.format(chat_room_id=_chat_room_id))
     
     # 2. last_create_time을 기준으로 백업할 데이터 세팅
-    if response.status_code == 200 and response.json()['lastCreatedTime']:
-        last_created_time = response.json()['lastCreatedTime']
+    if response.status_code == 200 and response.json()["result"]["lastCreatedTime"]:
+        last_created_time = response.json()["lastCreatedTime"]
         _chat_history = filter_current_chat_history(chat_history, last_created_time)
     
-    elif response.status_code == 200 and not response.json()['lastCreatedTime']:
+    elif response.status_code == 400:
         _chat_history = chat_history
     
     else:
@@ -98,7 +95,7 @@ def backup_chat_rooms():
             print(f">> Chat room {{ {rq_name} }} : {now-last_created_time}")
             
             # 1분 이상 차이나는지 확인
-            if (now - last_created_time) > timedelta(seconds=60):
+            if (now - last_created_time) > timedelta(seconds=180):
                 print(f">> Chat room {{ {rq_name} }} is now backuped!")
                 
                 _chat_history = r.lrange(rq_name, 0, -1)
@@ -120,5 +117,5 @@ def run_backup():
     
 if __name__ == "__main__":
     while(True):
-        time.sleep(10)
+        time.sleep(30)
         backup_chat_rooms()

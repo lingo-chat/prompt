@@ -56,7 +56,7 @@ async def process_message():
                 print(f"chat_room_id: {chat_room_id}, message: {user_message}\n\n")
                 
                 # 2~3. 히스토리 조회 및 변환 -> AIMessages, HumanMessages로 변환
-                chat_history = await get_chat_history(redis_client, chat_room_id)
+                chat_history = await get_chat_history(redis_client, user_id, chat_room_id)
                 print(f"\n\n>> chat_history: {chat_history}\n\n")
                 
                 # 4. chatbot 호출
