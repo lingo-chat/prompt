@@ -20,17 +20,21 @@ db_port = os.getenv('DB_PORT')
 
 # Redis 및 SQLite 연결 설정
 r = redis.Redis(host=redis_url, port=redis_port, db=1)
-get_last_created_time_url = f"http://"+redis_url+":"+db_port+'/chats/db/{chat_room_id}/created-time'
+get_last_created_time_url = f"http://"+redis_url+":"+db_port+'/chats/db/ai/{chat_room_id}/created-time'
 backup_url = "http://"+redis_url+":"+db_port+'/chats/db'
 
 
 def filter_current_chat_history(chat_history: List[dict],
-                                last_created_time: datetime.datetime) -> List[dict]:
+                                last_created_time: datetime) -> List[dict]:
     """
-        last_created_time 이후에 진행된 대화 데이터만 필터링하여 반환합니다.
+        last_created_time 이후에 진행된 대화 데이터만 필터링하여 반환합니다. 
+        
+        중복이 없게 하기 위해, idx+1 데이터부터 백업합니다.
     """
-    
-    return [i for i in chat_history if datetime.datetime.strptime(i['created_time'], '%Y-%m-%d %H:%M:%S') > last_created_time]
+    for idx, chat in enumerate(chat_history):
+        if chat["role"] == "assistant":
+            if datetime.strptime(chat["created_time"], '%Y-%m-%d %H:%M:%S') >= last_created_time:
+                return chat_history[idx+1:]
 
 
 def request_backup(chat_history: List[dict]) -> bool:
@@ -56,8 +60,8 @@ def request_backup(chat_history: List[dict]) -> bool:
     response = requests.get(get_last_created_time_url.format(chat_room_id=_chat_room_id))
     
     # 2. last_create_time을 기준으로 백업할 데이터 세팅
-    if response.status_code == 200 and response.json()["result"]["lastCreatedTime"]:
-        last_created_time = response.json()["lastCreatedTime"]
+    if response.status_code == 200:
+        last_created_time = datetime.strptime(response.json()["result"]["lastCreatedTime"], '%Y-%m-%d %H:%M:%S')
         _chat_history = filter_current_chat_history(chat_history, last_created_time)
     
     elif response.status_code == 400:
@@ -73,7 +77,7 @@ def request_backup(chat_history: List[dict]) -> bool:
     }
     
     response = requests.post(backup_url, json=chat_history_data)
-    return response.status_code == 200
+    return response.status_code >= 200 and response.status_code < 500
 
 
 def backup_chat_rooms():
@@ -104,7 +108,7 @@ def backup_chat_rooms():
                 if request_backup(_chat_history):
                     r.delete(rq_name)
                 else:
-                    print(">> Error, Failed to save output!\n>>Queue name: {rq_name}\n\n")
+                    print(f">> Error, Failed to save output!\n>>Queue name: {rq_name}\n\n")
                 
         except Exception as e:
             print(f">> Error in whole backup sequence: {e}\n\n")
