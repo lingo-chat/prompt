@@ -58,9 +58,9 @@ async def get_chat_history(redis_client,
         for data in _chat_history:
             _data = eval(data.decode('utf-8'))
             if _data.get('role') == 'user':
-                _data = HumanMessage(content=_data['content'])
+                _data = HumanMessage(content=_data["content"])
             elif _data.get('role') == 'assistant':
-                _data = AIMessage(content=_data['content'])
+                _data = AIMessage(content=_data["content"])
             chat_history.append(_data)
         
         # chat_history = [eval(data.decode('utf-8')) for data in _chat_history]    
@@ -77,15 +77,15 @@ async def get_chat_history(redis_client,
     
     # db 조회 시퀀스 추가 feat-#22
     if len(chat_history) == 0:
-        db_chat_history = requests.get(db_reload_url, params={'chat_room_id': int(chat_room_id)}).json()
+        db_chat_history = requests.get(db_reload_url, params={"chat_room_id": int(chat_room_id)}).json()
         
         if db_chat_history is not None:
             result = []
             
             # 마지막 메세지에 시간 초기화
-            for idx, chat in enumerate(eval(db_chat_history[0]['chat_history'])):
-                if idx == len(eval(db_chat_history[0]['chat_history']))-1:
-                    chat['created_time'] = datetime.now(seoul_tz).strftime('%Y-%m-%d-%H-%M-%S')
+            for idx, chat in enumerate(eval(db_chat_history[0]["chat_history"])):
+                if idx == len(eval(db_chat_history[0]["chat_history"]))-1:
+                    chat["created_time"] = datetime.now(seoul_tz).strftime('%Y-%m-%d %H:%M:%S')
                 result.append(str(chat))
             # db_chat_history = [chat for chat in eval(db_chat_history[0]['chat_history'])]
             
@@ -105,7 +105,7 @@ async def save_chat_history(redis_client,
     """
         chat_history를 redis에 저장합니다.
     """
-    current_time = datetime.now(seoul_tz).strftime('%Y-%m-%d-%H-%M-%S')
+    current_time = datetime.now(seoul_tz).strftime('%Y-%m-%d %H:%M:%S')
     save_messages = [
         str({"role": "user", "content": user_message, "user_id": user_id, "chat_room_id": chat_room_id}),
         str({"role": "assistant", "content": final_response, "user_id": user_id, "chat_room_id": chat_room_id, "created_time": current_time}),
@@ -121,11 +121,11 @@ async def emit_chat_message(chat_room_id: int,
         웹소켓으로 메세지를 전송합니다.
     """
     lock.acquire()
-    await asio.emit(event='ai_chat_message', 
-                    data={'user_id': user_id,
-                          'chat_room_id': chat_room_id,
-                          'response': response,
-                          'is_final': is_final},
+    await asio.emit(event="ai_chat_message", 
+                    data={"user_id": user_id,
+                          "chat_room_id": chat_room_id,
+                          "response": response,
+                          "is_final": is_final},
                     namespace=websocket_namespace)
     lock.release()
     return
