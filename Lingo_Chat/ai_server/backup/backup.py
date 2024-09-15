@@ -31,6 +31,8 @@ def filter_current_chat_history(chat_history: List[dict],
         
         중복이 없게 하기 위해, idx+1 데이터부터 백업합니다.
     """
+    if not chat_history:
+        return chat_history
     for idx, chat in enumerate(chat_history):
         if chat["role"] == "assistant":
             if datetime.strptime(chat["created_time"], '%Y-%m-%d %H:%M:%S') >= last_created_time:
@@ -81,12 +83,14 @@ def request_backup(chat_history: List[dict]) -> bool:
 
 
 def backup_chat_rooms():
-    # Redis에서 채팅방 목록 조회
+    backup_freq = 180  # 3분
+    
+    # 1. Redis에서 채팅방 목록 조회
     redis_queues = [key.decode('utf-8') for key in r.keys('*') if re.match(r'^\d+$', key.decode('utf-8'))]
     
     now = datetime.strptime(datetime.now(seoul_tz).strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S')
     os.system('clear')
-    print(f">> Redis chats will be backuped after 1 minute of inactivity.\n\n")
+    print(f">> Redis chats will be backuped after {backup_freq/60} minute of inactivity.\n\n")
     print(f">> Now saved chat rooms: {redis_queues}\n>> Last checked at: {now}\n\n")
     
     for rq_name in redis_queues:
@@ -94,12 +98,13 @@ def backup_chat_rooms():
         _last_chat = [eval(i.decode('utf-8')) for i in _last_chat]
         
         try:
+            # 2. 마지막 대화 시간 확인
             _last_chat_created_time = _last_chat[-1]['created_time']
             last_created_time = datetime.strptime(_last_chat_created_time, '%Y-%m-%d %H:%M:%S')
             print(f">> Chat room {{ {rq_name} }} : {now-last_created_time}")
             
-            # 1분 이상 차이나는지 확인
-            if (now - last_created_time) > timedelta(seconds=180):
+            # 3. {backup_freq}초 이상 차이나는지 확인
+            if (now - last_created_time) > timedelta(seconds=backup_freq):
                 print(f">> Chat room {{ {rq_name} }} is now backuped!")
                 
                 _chat_history = r.lrange(rq_name, 0, -1)
