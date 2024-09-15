@@ -53,7 +53,7 @@ async def process_message():
                 message = eval(message.decode('utf-8'))
                 chat_room_id, user_message = message['chat_room_id'], message['user_message']
                 user_id = message['user_id']
-                print(f"chat_room_id: {chat_room_id}, message: {user_message}\n\n")
+                print(f"\n>> chat_room_id: {chat_room_id}, user_id: {user_id}\n>> user message: {user_message}\n\n")
                 
                 # 2~3. 히스토리 조회 및 변환 -> AIMessages, HumanMessages로 변환
                 chat_history = await get_chat_history(redis_client, user_id, chat_room_id)

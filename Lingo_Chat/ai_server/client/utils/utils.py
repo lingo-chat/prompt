@@ -74,7 +74,7 @@ async def caching_chat_history(redis_client,
     if db_chat_history and isinstance(db_chat_history[-1], dict):
         db_chat_history = [str(chat) for chat in db_chat_history]
 
-    await redis_client.rpush(chat_room_id, *db_chat_history)
+        await redis_client.rpush(chat_room_id, *db_chat_history)
     
 
 def _convert_format_to_message(_chat_history: List[Dict]) -> List[Union[HumanMessage, AIMessage]]:
