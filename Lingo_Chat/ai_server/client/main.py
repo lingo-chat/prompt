@@ -16,7 +16,7 @@ import asyncio
 
 from concurrent.futures import ProcessPoolExecutor
 
-from client.utils import get_chat_history, save_chat_history, emit_chat_message, call_chat_graph
+from client.utils import get_chat_history, save_chat_history, call_chat_graph
 from client.utils import (asio, connection_test_message,
                           websocket_namespace, websocket_url,
                           redis_url, redis_port, redis_ms_id, lock)
@@ -65,14 +65,13 @@ async def process_message():
                 # 5. redis history 저장 w/ 웹소켓 메세지 전송
                 await save_chat_history(redis_client, chat_room_id, user_id, user_message, response)
                 
-                # 6. 웹소켓으로 메세지 전송
+                # 6. 웹소켓으로 메세지 전송 -> 5번에서 처리
                 # await emit_chat_message(chat_room_id, user_id, response, True) # 이렇게 보낼 경우 백엔드파트에서 데이터 중복됨.
-                await emit_chat_message(chat_room_id, user_id, "", True)
-                
 
         except Exception as e:
-            print(f"\n>> error: {e}\n")
-            return Exception
+            print(f"\n\n>> An error occured: {e}\n>> AI server will retry after 5 seconds.\n\n")
+            await asio.sleep(seconds=5)
+            # return Exception
         
     
 def start_process_message():
@@ -90,7 +89,7 @@ async def main():
             
             # 메인 추론 함수 비동기 실행
             # refer: https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor
-            tasks = [loop.run_in_executor(executor, start_process_message) for _ in range(3)]
+            tasks = [loop.run_in_executor(executor, start_process_message) for _ in range(4)]
             
             await asio.wait()
             
