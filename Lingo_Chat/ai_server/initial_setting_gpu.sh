@@ -8,7 +8,7 @@ echo -e "1. apt install done.\n\n"
 # miniconda install
 mkdir -p /workspace/miniconda3
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /workspace/miniconda3/miniconda.sh
-bash /workspace/miniconda3/miniconda.sh -b -u -p ./miniconda3
+bash /workspace/miniconda3/miniconda.sh -b -u -p /workspace/miniconda3
 rm /workspace/miniconda3/miniconda.sh
 
 # conda activate
@@ -42,13 +42,13 @@ echo -e  "4. etc packages installation done.\n\n"
 ngrok config add-authtoken <your_token>
 huggingface-cli login --token <your_token>
 
-# git clone
-git clone https://github.com/LewisVille-flow/lingo-chat-prompt.git
-cd lingo-chat-prompt
+# # git clone
+# git clone https://github.com/LewisVille-flow/lingo-chat-prompt.git
+# cd lingo-chat-prompt
 # git checkout -t origin/feat-#22
 
 # model download
-cd Lingo_Chat/ai_server/model
+cd Lingo_Chat/ai_server/models
 mkdir -p ./PAL_orbit_v0.2.2.3
 python download.py
 

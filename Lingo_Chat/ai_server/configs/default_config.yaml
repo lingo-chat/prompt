@@ -1,7 +1,8 @@
 python_command: vllm.entrypoints.openai.api_server
 
 # llm_model_path: /workspace/lingo-chat-prompt/Lingo_Chat/ai_server/models/PAL_orbit_v0.2.2.3
-llm_model_path: HEYPAL/PAL_orbit_v0.2.2.3
+# llm_model_path: HEYPAL/PAL_orbit_v0.2.2.3
+llm_model_path: DinoTheLewis/llama-3-ko-8B-persona-chat-v1.0
 
 num_gpus: 1
 gpu_memory_utilization: 0.9

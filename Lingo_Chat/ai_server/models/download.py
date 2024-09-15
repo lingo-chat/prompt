@@ -5,7 +5,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 def _model_download(
-    model_path: str = "HEYPAL/PAL_orbit_v0.2.2.3",
+    model_path: str = "DinoTheLewis/llama-3-ko-8B-persona-chat-v1.0",
     save_path: str = "./PAL_orbit_v0.2.2.3",
 ):
     """
