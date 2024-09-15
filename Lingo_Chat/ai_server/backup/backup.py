@@ -73,13 +73,16 @@ def request_backup(chat_history: List[dict]) -> bool:
         print(f"\n>> Error in request_backup: {response}\n\n")
         return False
     
-    # 3. 백업 진행
-    chat_history_data = {
-        "redisDataList": _chat_history
-    }
-    
-    response = requests.post(backup_url, json=chat_history_data)
-    return response.status_code >= 200 and response.status_code < 500
+    if _chat_history:
+        # 3. 백업 진행
+        chat_history_data = {
+            "redisDataList": _chat_history
+        }
+        
+        response = requests.post(backup_url, json=chat_history_data)
+        return response.status_code >= 200 and response.status_code < 500
+    else:
+        return True
 
 
 def backup_chat_rooms():
