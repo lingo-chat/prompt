@@ -48,7 +48,7 @@ huggingface-cli login --token <your_token>
 # git checkout -t origin/feat-#22
 
 # model download
-cd ai_server/models
+cd ./models
 mkdir -p ./PAL_orbit_v0.2.2.3
 python download.py
 
